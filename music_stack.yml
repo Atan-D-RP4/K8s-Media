@@ -1,0 +1,866 @@
+# ================================
+# MEDIA SERVER KUBERNETES DEPLOYMENT
+# ================================
+# This manifest deploys a complete music automation stack:
+# - Lidarr: Manages your music library (like Sonarr for TV shows)
+# - Prowlarr: Manages indexers/search providers
+# - slskd: Soulseek client for peer-to-peer music sharing
+# - Traefik: Reverse proxy with automatic HTTPS certificates
+# Prerequisites:
+# 1. Apply Traefik CRDs first:
+#    kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.0/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+# 2. DNS: Point your domain to your server's PUBLIC IP (not local IP)
+# 3. Port forwarding on router: 80→30080 and 443→30443
+# 4. Update TODOs below before deploying
+# ================================
+# ================================
+# NAMESPACE
+# ================================
+# Creates an isolated environment for all media-related resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media
+
+# ================================
+# PERSISTENT STORAGE
+# ================================
+# Defines where data is stored on the host machine
+# WARNING: Data at /home/atan/Media/music will be used directly
+---
+# PersistentVolume: Links to actual storage on the host
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-pv-host
+  labels:
+    type: local
+    app: media
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany # Multiple pods can read/write simultaneously
+  persistentVolumeReclaimPolicy: Retain # Don't delete data if PVC is removed
+  storageClassName: local-path
+  hostPath:
+    path: /home/atan/Media/music # TODO: Update to your actual path
+    type: DirectoryOrCreate
+---
+# PersistentVolumeClaim: Requests storage from the PV above
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-pvc-auto
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: local-path
+  volumeName: media-pv-host # Explicitly binds to our PV above
+  resources:
+    requests:
+      storage: 50Gi
+  selector:
+    matchLabels:
+      type: local
+      app: media
+
+# ================================
+# CONFIGURATION FILES
+# ================================
+# ConfigMaps store non-sensitive configuration files
+---
+# slskd Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slskd-config
+  namespace: media
+data:
+  slskd.yml: |
+    # Soulseek daemon configuration
+    directories:
+      downloads: /downloads  # Where downloaded files go
+    shares:
+      directories:
+        - /music  # Directory shared with other Soulseek users
+    soulseek:
+      username: can0py_r@ven97!  # TODO: Change this
+      password: password  # TODO: Change this
+    web:
+      authentication:
+        username: admin  # TODO: Change this
+        password: admin  # TODO: Change this
+        api_keys:
+          lidarr:
+            key: 7U+1lKLzA7WDfuB98O0KLmF5XlRazhdDD20dDojyo9qxNrU2SnpjTYPbVXeNKByO
+            role: administrator
+            cidr: 0.0.0.0/0,::/0  # Allow access from any IP
+---
+# Lidarr Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lidarr-config
+  namespace: media
+data:
+  config.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <Config>
+      <ApiKey>/3Bmu6ILs45HJIDdK+nN2N+kZwbrsqI8+Ug93DioXmuVny2koipLtK6wvDRqUhGL</ApiKey>
+      <BindAddress>*</BindAddress>
+      <Port>8686</Port>
+      <SslPort>6868</SslPort>
+      <EnableSsl>False</EnableSsl>
+      <LaunchBrowser>True</LaunchBrowser>
+      <AuthenticationMethod>Forms</AuthenticationMethod>
+      <AuthenticationRequired>Enabled</AuthenticationRequired>
+      <Username>admin</Username>  <!-- TODO: Change this -->
+      <Password>admin</Password>  <!-- TODO: Change this -->
+      <Branch>master</Branch>
+      <LogLevel>info</LogLevel>
+      <SslCertPath></SslCertPath>
+      <SslCertPassword></SslCertPassword>
+      <UrlBase></UrlBase>
+      <InstanceName>Lidarr</InstanceName>
+      <UpdateMechanism>Docker</UpdateMechanism>
+    </Config>
+---
+# Prowlarr Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prowlarr-config
+  namespace: media
+data:
+  config.xml: |
+    <Config>
+      <BindAddress>*</BindAddress>
+      <Port>9696</Port>
+      <SslPort>6969</SslPort>
+      <EnableSsl>False</EnableSsl>
+      <LaunchBrowser>True</LaunchBrowser>
+      <AuthenticationMethod>Forms</AuthenticationMethod>
+      <AuthenticationRequired>Enabled</AuthenticationRequired>
+      <Username>admin</Username>  <!-- TODO: Change this -->
+      <Password>admin</Password>  <!-- TODO: Change this -->
+      <ApiKey>/3Bmu6ILs45HJIDdK+nN2N+kZwbrsqI8+Ug93DioXmuVny2koipLtK6wvDRqUhGL</ApiKey>
+      <Branch>master</Branch>
+      <LogLevel>info</LogLevel>
+      <SslCertPath></SslCertPath>
+      <SslCertPassword></SslCertPassword>
+      <UrlBase></UrlBase>
+      <InstanceName>Prowlarr</InstanceName>
+      <UpdateMechanism>Docker</UpdateMechanism>
+    </Config>
+
+# ================================
+# DEPLOYMENTS
+# ================================
+# Deployments manage the actual running containers
+---
+# slskd: Soulseek client with web UI
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slskd
+  namespace: media
+spec:
+  replicas: 1 # Only one instance needed
+  selector:
+    matchLabels:
+      app: slskd
+  template:
+    metadata:
+      labels:
+        app: slskd
+    spec:
+      containers:
+        - name: slskd
+          image: slskd/slskd:latest
+          ports:
+            - containerPort: 5030 # HTTP web interface
+            - containerPort: 5031 # HTTPS web interface
+            - containerPort: 50300 # Soulseek peer connections
+          env:
+            - name: PUID
+              value: "1000" # User ID for file permissions
+            - name: PGID
+              value: "1000" # Group ID for file permissions
+          volumeMounts:
+            # Mount persistent storage for app data
+            - name: media-storage
+              mountPath: /app
+              subPath: slskd/app
+            # Mount downloads directory
+            - name: media-storage
+              mountPath: /downloads
+              subPath: downloads
+            # Mount music library (shared with other users)
+            - name: media-storage
+              mountPath: /music
+            # Overlay config file from ConfigMap
+            # This mounts ONLY the config file, not the entire directory
+            - name: slskd-config
+              mountPath: /app/slskd.yml
+              subPath: slskd.yml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: slskd-config
+          configMap:
+            name: slskd-config
+            items:
+              - key: slskd.yml
+                path: slskd.yml
+---
+# Lidarr: Music collection manager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lidarr
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lidarr
+  template:
+    metadata:
+      labels:
+        app: lidarr
+    spec:
+      containers:
+        - name: lidarr
+          image: ghcr.io/hotio/lidarr:pr-plugins
+          ports:
+            - containerPort: 8686
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            # Mount config directory where Lidarr stores settings/database
+            - name: media-storage
+              mountPath: /config
+              subPath: lidarr/config
+            # Mount downloads directory
+            - name: media-storage
+              mountPath: /downloads
+              subPath: downloads
+            # Mount music library
+            - name: media-storage
+              mountPath: /music
+            # Overlay just the config.xml file from ConfigMap
+            # This provides initial configuration without blocking other files
+            - name: lidarr-config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: lidarr-config
+          configMap:
+            name: lidarr-config
+            items:
+              - key: config.xml
+                path: config.xml
+---
+# Prowlarr: Indexer/tracker manager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      containers:
+        - name: prowlarr
+          image: linuxserver/prowlarr:latest
+          ports:
+            - containerPort: 9696
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            # Mount config directory
+            - name: media-storage
+              mountPath: /config
+              subPath: prowlarr/config
+            # Overlay config.xml from ConfigMap
+            - name: prowlarr-config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: prowlarr-config
+          configMap:
+            name: prowlarr-config
+            items:
+              - key: config.xml
+                path: config.xml
+
+# ================================
+# SERVICES
+# ================================
+# Services expose deployments on the network
+# NodePort: Accessible at <node-ip>:<nodePort>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lidarr
+  namespace: media
+spec:
+  type: NodePort
+  selector:
+    app: lidarr
+  ports:
+    - name: http
+      port: 8686 # Internal cluster port
+      targetPort: 8686 # Container port
+      nodePort: 30086 # External access port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: media
+spec:
+  type: NodePort
+  selector:
+    app: prowlarr
+  ports:
+    - name: http
+      port: 9696
+      targetPort: 9696
+      nodePort: 30096
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slskd
+  namespace: media
+spec:
+  type: NodePort
+  selector:
+    app: slskd
+  ports:
+    - name: http
+      port: 5030
+      targetPort: 5030
+      nodePort: 30030
+    - name: https
+      port: 5031
+      targetPort: 5031
+      nodePort: 30031
+    - name: soulseek
+      port: 50300
+      targetPort: 50300
+      nodePort: 30300 # External port for peer connections
+
+# ================================
+# AUTOMATED TAGGING JOB (Optional)
+# ================================
+# CronJob to automatically tag music files using MusicBrainz
+# Runs weekly on Sundays at 3 AM
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: picard-auto-tag
+  namespace: media
+spec:
+  schedule: "0 3 * * 0" # Cron format: minute hour day month weekday
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          containers:
+            - name: picard
+              image: mikenye/picard:latest
+              command:
+                - sh
+                - -c
+                - |
+                  # Run Picard in headless mode
+                  # QT_QPA_PLATFORM=offscreen disables GUI
+                  QT_QPA_PLATFORM=offscreen picard \
+                    -e "LOAD /music" \
+                    -e "CLUSTER" \
+                    -e "LOOKUP" \
+                    -e "SAVE" \
+                    -e "QUIT" || echo "Picard tagging completed with warnings"
+              volumeMounts:
+                - name: media-storage
+                  mountPath: /music
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "2Gi"
+                  cpu: "1000m"
+          restartPolicy: OnFailure
+          volumes:
+            - name: media-storage
+              persistentVolumeClaim:
+                claimName: media-pvc-auto
+
+# ================================
+# TRAEFIK REVERSE PROXY
+# ================================
+# Traefik provides HTTPS access with automatic Let's Encrypt certificates
+---
+# Separate namespace for infrastructure
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik
+---
+# ServiceAccount: Identity for Traefik pod
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: traefik
+  name: traefik
+---
+# ClusterRole: Permissions Traefik needs to watch Kubernetes resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traefik
+rules:
+  # Read services and endpoints to route traffic
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Read ingress resources
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "ingressclasses"]
+    verbs: ["get", "list", "watch"]
+  # Read Traefik's custom resources (IngressRoute, Middleware, etc.)
+  - apiGroups: ["traefik.io"]
+    resources:
+      - "ingressroutes"
+      - "ingressroutetcps"
+      - "ingressrouteudps"
+      - "middlewares"
+      - "middlewaretcps"
+      - "tlsoptions"
+      - "tlsstores"
+      - "traefikservices"
+      - "serverstransports"
+      - "serverstransporttcps"
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding: Grants permissions to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik
+subjects:
+  - kind: ServiceAccount
+    name: traefik
+    namespace: traefik
+---
+# Traefik Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+        - name: traefik
+          image: traefik:v3.0
+          args:
+            # Enable dashboard (accessible at /dashboard/)
+            - --api.dashboard=true
+            - --api.insecure=false
+            # Define entrypoints (ports where Traefik listens)
+            - --entrypoints.web.address=:80
+            - --entrypoints.websecure.address=:443
+            # Enable Kubernetes CRD provider (IngressRoute, etc.)
+            - --providers.kubernetescrd
+            - --providers.kubernetescrd.allowCrossNamespace=true
+            # Let's Encrypt configuration
+            # Uses HTTP challenge (works with NodePort + port forwarding)
+            - --certificatesresolvers.letsencrypt.acme.email=chaitanyarp4@gmail.com # TODO: Update email
+            - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+            - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+            - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+            # Logging
+            - --log.level=INFO
+            - --accesslog=true
+          ports:
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+            - name: dashboard
+              containerPort: 8080
+          volumeMounts:
+            - mountPath: /data
+              name: traefik-data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: traefik-data
+          persistentVolumeClaim:
+            claimName: traefik-data-pvc
+---
+# Storage for Let's Encrypt certificates
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: traefik-data-pvc
+  namespace: traefik
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-path
+---
+# Expose Traefik to external network
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  type: NodePort
+  selector:
+    app: traefik
+  ports:
+    - name: web
+      port: 80
+      nodePort: 30080 # Forward router port 80 to this
+    - name: websecure
+      port: 443
+      nodePort: 30443 # Forward router port 443 to this
+    - name: dashboard
+      port: 8080
+      nodePort: 30090
+
+# ================================
+# TRAEFIK MIDDLEWARES
+# ================================
+# Middlewares modify requests/responses
+---
+# Redirect HTTP to HTTPS
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: media
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+# Add security headers
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: media
+spec:
+  headers:
+    customResponseHeaders:
+      X-Robots-Tag: "noindex, nofollow" # Don't index in search engines
+    sslRedirect: true
+    stsSeconds: 31536000 # Enable HSTS (force HTTPS for 1 year)
+    stsIncludeSubdomains: true
+    stsPreload: true
+---
+# Basic authentication for Traefik dashboard
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-auth
+  namespace: traefik
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth # Created below
+---
+# Secret for dashboard authentication
+# TODO: Replace with your own credentials
+# Generate with: htpasswd -nb admin your-password | base64
+apiVersion: v1
+kind: Secret
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik
+type: Opaque
+data:
+  # Current: admin:admin
+  # Generated with: htpasswd -nb admin admin | base64
+  users: YWRtaW46JGFwcjEkNXg1L0UzNC8kZWswSmNDbkVXVDYySmhDMm92M3V0MAoK
+
+# IMPORTANT: Replace all domains below with YOUR_PUBLIC_IP.sslip.io
+# Find your public IP: curl ifconfig.me
+# Example: If your public IP is 203.0.113.45, use:
+#   lidarr.203.0.113.45.sslip.io
+---
+# Lidarr HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lidarr-http
+  namespace: media
+spec:
+  entryPoints:
+    - web # Port 80
+  routes:
+    - match: Host(`lidarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: lidarr
+          port: 8686
+---
+# Lidarr HTTPS (main route)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lidarr-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure # Port 443
+  routes:
+    - match: Host(`lidarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: lidarr
+          port: 8686
+  tls:
+    certResolver: letsencrypt # Automatic HTTPS certificate
+---
+# Prowlarr HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr-http
+  namespace: media
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`prowlarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: prowlarr
+          port: 9696
+---
+# Prowlarr HTTPS
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`prowlarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: prowlarr
+          port: 9696
+  tls:
+    certResolver: letsencrypt
+---
+# slskd HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: slskd-http
+  namespace: media
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`slskd.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: slskd
+          port: 5030
+---
+# slskd HTTPS
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: slskd-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`slskd.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: slskd
+          port: 5030
+  tls:
+    certResolver: letsencrypt
+---
+# Traefik Dashboard (protected with basic auth)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik.192.168.0.6.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`)) # TODO: Replace YOUR_PUBLIC_IP
+      kind: Rule
+      middlewares:
+        - name: dashboard-auth # Requires login
+      services:
+        - name: api@internal # Internal Traefik API service
+          kind: TraefikService
+  tls:
+    certResolver: letsencrypt
+
+# ================================
+# DEPLOYMENT INSTRUCTIONS
+# ================================
+# 1. Update all TODO items in this file:
+#    - Domain names: Replace YOUR_PUBLIC_IP with your actual public IP
+#      Find it with: curl ifconfig.me
+#    - Passwords in ConfigMaps (search for "TODO")
+#    - Host path: /home/atan/Media/music
+#    - Email for Let's Encrypt
+---
+
+
+# 2. Install Traefik CRDs:
+#    kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.0/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+
+# 3. Apply this manifest:
+#    kubectl apply -f this-file.yaml
+
+# 4. Configure port forwarding on your router:
+#    External Port 80 → Internal IP:30080
+#    External Port 443 → Internal IP:30443
+
+# 5. Wait for Let's Encrypt certificates (check logs):
+#    kubectl logs -n traefik -l app=traefik -f
+
+# 6. Access your services (replace PUBLIC_IP with your actual IP):
+#    https://lidarr.PUBLIC_IP.sslip.io
+#    https://prowlarr.PUBLIC_IP.sslip.io
+#    https://slskd.PUBLIC_IP.sslip.io
+#    https://traefik.PUBLIC_IP.sslip.io/dashboard/
+
+# 7. First-time setup:
+#    - Configure Prowlarr indexers
+#    - Add Prowlarr to Lidarr (Settings → Indexers)
+#    - Add slskd download client to Lidarr
+#    - Add music root folder in Lidarr
+
+# Troubleshooting:
+# - Check pod status: kubectl get pods -n media
+# - View logs: kubectl logs -n media <pod-name>
+# - Check Traefik logs: kubectl logs -n traefik -l app=traefik
+# - Test DNS: nslookup lidarr.YOUR_PUBLIC_IP.sslip.io
+# - Verify port forwarding: curl http://your-public-ip:30080
+# - Check certificates: kubectl logs -n traefik -l app=traefik | grep -i certificate
+
+# Common Issues:
+# 1. "Cannot obtain certificate" - Check port forwarding and that your public IP is correct
+# 2. "503 Service Unavailable" - Pods might not be ready, check: kubectl get pods -n media
+# 3. "Connection refused" - Firewall might be blocking ports, check: sudo ufw status
+# 4. Local IP in domain - sslip.io only works with PUBLIC IPs, not 192.168.x.x
+
+# ================================
