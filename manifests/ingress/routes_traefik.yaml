@@ -1,0 +1,20 @@
+# Traefik Dashboard (protected with basic auth)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik.192.168.0.6.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      kind: Rule
+      middlewares:
+        - name: dashboard-auth # Requires login
+      services:
+        - name: api@internal # Internal Traefik API service
+          kind: TraefikService
+  tls:
+    certResolver: letsencrypt
+

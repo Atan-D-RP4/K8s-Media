@@ -1,0 +1,38 @@
+# Lidarr HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lidarr-http
+  namespace: media
+spec:
+  entryPoints:
+    - web # Port 80
+  routes:
+    - match: Host(`lidarr.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: lidarr
+          port: 8686
+---
+# Lidarr HTTPS (main route)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: lidarr-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure # Port 443
+  routes:
+    - match: Host(`lidarr.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: lidarr
+          port: 8686
+  tls:
+    certResolver: letsencrypt # Automatic HTTPS certificate
+

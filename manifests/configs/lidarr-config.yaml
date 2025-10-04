@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lidarr-config
+  namespace: media
+data:
+  config.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <Config>
+      <ApiKey>/3Bmu6ILs45HJIDdK+nN2N+kZwbrsqI8+Ug93DioXmuVny2koipLtK6wvDRqUhGL</ApiKey>
+      <BindAddress>*</BindAddress>
+      <Port>8686</Port>
+      <SslPort>6868</SslPort>
+      <EnableSsl>False</EnableSsl>
+      <LaunchBrowser>True</LaunchBrowser>
+      <AuthenticationMethod>Forms</AuthenticationMethod>
+      <AuthenticationRequired>Enabled</AuthenticationRequired>
+      <Username>admin</Username>  <!-- TODO: Change this -->
+      <Password>admin</Password>  <!-- TODO: Change this -->
+      <Branch>master</Branch>
+      <LogLevel>info</LogLevel>
+      <SslCertPath></SslCertPath>
+      <SslCertPassword></SslCertPassword>
+      <UrlBase></UrlBase>
+      <InstanceName>Lidarr</InstanceName>
+      <UpdateMechanism>Docker</UpdateMechanism>
+    </Config>
+

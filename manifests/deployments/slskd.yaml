@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slskd
+  namespace: media
+spec:
+  replicas: 1 # Only one instance needed
+  selector:
+    matchLabels:
+      app: slskd
+  template:
+    metadata:
+      labels:
+        app: slskd
+    spec:
+      containers:
+        - name: slskd
+          image: slskd/slskd:latest
+          ports:
+            - containerPort: 5030 # HTTP web interface
+            - containerPort: 5031 # HTTPS web interface
+            - containerPort: 50300 # Soulseek peer connections
+          env:
+            - name: PUID
+              value: "1000" # User ID for file permissions
+            - name: PGID
+              value: "1000" # Group ID for file permissions
+          volumeMounts:
+            # Mount persistent storage for app data
+            - name: media-storage
+              mountPath: /app
+              subPath: slskd/app
+            # Mount downloads directory
+            - name: media-storage
+              mountPath: /downloads
+              subPath: downloads
+            # Mount music library (shared with other users)
+            - name: media-storage
+              mountPath: /music
+            # Overlay config file from ConfigMap
+            # This mounts ONLY the config file, not the entire directory
+            - name: slskd-config
+              mountPath: /app/slskd.yml
+              subPath: slskd.yml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: slskd-config
+          configMap:
+            name: slskd-config
+            items:
+              - key: slskd.yml
+                path: slskd.yml
+

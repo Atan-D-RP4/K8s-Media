@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slskd-config
+  namespace: media
+data:
+  slskd.yml: |
+    # Soulseek daemon configuration
+    directories:
+      downloads: /downloads  # Where downloaded files go
+    shares:
+      directories:
+        - /music  # Directory shared with other Soulseek users
+    soulseek:
+      username: can0py_r@ven97!  # TODO: Change this
+      password: password  # TODO: Change this
+    web:
+      authentication:
+        username: admin  # TODO: Change this
+        password: admin  # TODO: Change this
+        api_keys:
+          lidarr:
+            key: 7U+1lKLzA7WDfuB98O0KLmF5XlRazhdDD20dDojyo9qxNrU2SnpjTYPbVXeNKByO
+            role: administrator
+            cidr: 0.0.0.0/0,::/0  # Allow access from any IP
+

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lidarr
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lidarr
+  template:
+    metadata:
+      labels:
+        app: lidarr
+    spec:
+      containers:
+        - name: lidarr
+          image: ghcr.io/hotio/lidarr:pr-plugins
+          ports:
+            - containerPort: 8686
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            # Mount config directory where Lidarr stores settings/database
+            - name: media-storage
+              mountPath: /config
+              subPath: lidarr/config
+            # Mount downloads directory
+            - name: media-storage
+              mountPath: /downloads
+              subPath: downloads
+            # Mount music library
+            - name: media-storage
+              mountPath: /music
+            # Overlay just the config.xml file from ConfigMap
+            # This provides initial configuration without blocking other files
+            - name: lidarr-config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: lidarr-config
+          configMap:
+            name: lidarr-config
+            items:
+              - key: config.xml
+                path: config.xml
+

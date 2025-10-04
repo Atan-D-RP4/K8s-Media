@@ -1,0 +1,38 @@
+# Prowlarr HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr-http
+  namespace: media
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`prowlarr.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: prowlarr
+          port: 9696
+---
+# Prowlarr HTTPS
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prowlarr-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`prowlarr.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: prowlarr
+          port: 9696
+  tls:
+    certResolver: letsencrypt
+

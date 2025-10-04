@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: picard-auto-tag
+  namespace: media
+spec:
+  schedule: "0 3 * * 0" # Cron format: minute hour day month weekday
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          containers:
+            - name: picard
+              image: mikenye/picard:latest
+              command:
+                - sh
+                - -c
+                - |
+                  # Run Picard in headless mode
+                  # QT_QPA_PLATFORM=offscreen disables GUI
+                  QT_QPA_PLATFORM=offscreen picard \
+                    -e "LOAD /music" \
+                    -e "CLUSTER" \
+                    -e "LOOKUP" \
+                    -e "SAVE" \
+                    -e "QUIT" || echo "Picard tagging completed with warnings"
+              volumeMounts:
+                - name: media-storage
+                  mountPath: /music
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "2Gi"
+                  cpu: "1000m"
+          restartPolicy: OnFailure
+          volumes:
+            - name: media-storage
+              persistentVolumeClaim:
+                claimName: media-pvc-auto
+

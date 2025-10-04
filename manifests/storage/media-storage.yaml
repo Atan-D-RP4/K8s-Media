@@ -1,0 +1,38 @@
+# PersistentVolume: Links to actual storage on the host
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-pv-host
+  labels:
+    type: local
+    app: media
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany # Multiple pods can read/write simultaneously
+  persistentVolumeReclaimPolicy: Retain # Don't delete data if PVC is removed
+  storageClassName: local-path
+  hostPath:
+    path: /home/atan/Media/music # TODO: Update to your actual path
+    type: DirectoryOrCreate
+---
+# PersistentVolumeClaim: Requests storage from the PV above
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-pvc-auto
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: local-path
+  volumeName: media-pv-host # Explicitly binds to our PV above
+  resources:
+    requests:
+      storage: 50Gi
+  selector:
+    matchLabels:
+      type: local
+      app: media
+

@@ -1,0 +1,38 @@
+# slskd HTTP (redirects to HTTPS)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: slskd-http
+  namespace: media
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`slskd.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: slskd
+          port: 5030
+---
+# slskd HTTPS
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: slskd-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`slskd.192.168.0.6.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: slskd
+          port: 5030
+  tls:
+    certResolver: letsencrypt
+

@@ -688,7 +688,14 @@ spec:
   entryPoints:
     - web # Port 80
   routes:
-    - match: Host(`lidarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`lidarr.<YOUR_DOMAIN>`) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: lidarr
+          port: 8686
+    - match: Host(`lidarr.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: redirect-https # Redirect to HTTPS
@@ -706,7 +713,14 @@ spec:
   entryPoints:
     - websecure # Port 443
   routes:
-    - match: Host(`lidarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`lidarr.<YOUR_DOMAIN>`) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: lidarr
+          port: 8686
+    - match: Host(`lidarr.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: security-headers
@@ -726,7 +740,14 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`prowlarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`prowlarr.<YOUR_DOMAIN>`) # Replace <YOUR_DOMAIN> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: prowlarr
+          port: 9696
+    - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: redirect-https
@@ -744,7 +765,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`prowlarr.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`prowlarr.<YOUR_DOMAIN>`) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: prowlarr
+          port: 9696
+    - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: security-headers
@@ -764,7 +792,14 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`slskd.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`slskd.<YOUR_DOMAIN>`) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: slskd
+          port: 5030
+    - match: Host(`slskd.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: redirect-https
@@ -782,7 +817,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`slskd.192.168.0.6.sslip.io`) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`slskd.<YOUR_DOMAIN>`) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: slskd
+          port: 5030
+    - match: Host(`slskd.<YOUR_PUBLIC_IP>.sslip.io`) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: security-headers
@@ -802,7 +844,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`traefik.192.168.0.6.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`)) # TODO: Replace YOUR_PUBLIC_IP
+    - match: Host(`traefik.<YOUR_DOMAIN>`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`)) # Replace <YOUR_PUBLIC_IP> with your actual IP
+      kind: Rule
+      middlewares:
+        - name: dashboard-auth # Requires login
+      services:
+        - name: api@internal # Internal Traefik API service
+          kind: TraefikService
+    - match: Host(`traefik.<YOUR_PUBLIC_IP>.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`)) # Replace <YOUR_PUBLIC_IP> with your actual IP
       kind: Rule
       middlewares:
         - name: dashboard-auth # Requires login

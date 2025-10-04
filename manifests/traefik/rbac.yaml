@@ -1,0 +1,50 @@
+# ServiceAccount: Identity for Traefik pod
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: traefik
+  name: traefik
+---
+# ClusterRole: Permissions Traefik needs to watch Kubernetes resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traefik
+rules:
+  # Read services and endpoints to route traffic
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Read ingress resources
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "ingressclasses"]
+    verbs: ["get", "list", "watch"]
+  # Read Traefik's custom resources (IngressRoute, Middleware, etc.)
+  - apiGroups: ["traefik.io"]
+    resources:
+      - "ingressroutes"
+      - "ingressroutetcps"
+      - "ingressrouteudps"
+      - "middlewares"
+      - "middlewaretcps"
+      - "tlsoptions"
+      - "tlsstores"
+      - "traefikservices"
+      - "serverstransports"
+      - "serverstransporttcps"
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding: Grants permissions to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik
+subjects:
+  - kind: ServiceAccount
+    name: traefik
+    namespace: traefik
+

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      containers:
+        - name: prowlarr
+          image: linuxserver/prowlarr:latest
+          ports:
+            - containerPort: 9696
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            # Mount config directory
+            - name: media-storage
+              mountPath: /config
+              subPath: prowlarr/config
+            # Overlay config.xml from ConfigMap
+            - name: prowlarr-config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc-auto
+        - name: prowlarr-config
+          configMap:
+            name: prowlarr-config
+            items:
+              - key: config.xml
+                path: config.xml
+
