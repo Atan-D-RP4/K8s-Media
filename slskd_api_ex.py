@@ -10,7 +10,7 @@ api_key = os.environ.get("SLSKD_API_KEY")
 if api_key is None:
     raise ValueError("SLSKD_API_KEY environment variable not set")
 
-slskd = slskd_api.SlskdClient(host, api_key)
+slskd = slskd_api.SlskdClient(host, api_key, "/")
 
 app_status = slskd.application.state()
 # available_rooms = slskd.rooms.get_all()
