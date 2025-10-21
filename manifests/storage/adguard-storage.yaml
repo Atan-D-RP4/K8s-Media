@@ -1,0 +1,77 @@
+# AdGuard Storage - Missing PVCs
+---
+# PersistentVolume for AdGuard data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: adguard-data-pv
+  labels:
+    type: local
+    app: adguard-data
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path
+  hostPath:
+    path: /home/atan/Media/adguard/data
+    type: DirectoryOrCreate
+---
+# PersistentVolume for AdGuard config
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: adguard-config-pv
+  labels:
+    type: local
+    app: adguard-config
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-path
+  hostPath:
+    path: /home/atan/Media/adguard/config
+    type: DirectoryOrCreate
+---
+# PersistentVolumeClaim for AdGuard data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-data-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  volumeName: adguard-data-pv
+  resources:
+    requests:
+      storage: 5Gi
+  selector:
+    matchLabels:
+      type: local
+      app: adguard-data
+---
+# PersistentVolumeClaim for AdGuard config
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-config-pvc
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  volumeName: adguard-config-pv
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      type: local
+      app: adguard-config

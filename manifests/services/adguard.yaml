@@ -1,0 +1,23 @@
+# AdGuard Service Manifest for Kubernetes
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard
+  namespace: media
+spec:
+  type: LoadBalancer  # Changed to LoadBalancer for better DNS access
+  selector:
+    app: adguard
+  ports:
+    - name: web
+      protocol: TCP
+      port: 3000 # Admin Web Interface
+      targetPort: 3000 # Container Port
+    - name: dns-tcp
+      protocol: TCP
+      port: 53 # DNS TCP Port
+      targetPort: 53 # Container Port
+    - name: dns-udp
+      protocol: UDP  # ✅ Fixed: was incomplete
+      port: 53 # DNS UDP Port
+      targetPort: 53 # Container Port

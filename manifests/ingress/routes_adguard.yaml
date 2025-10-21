@@ -1,0 +1,51 @@
+# AdGuard Ingress Route Manifest
+# AdGuard HTTP (redirect to HTTPS)
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: adguard-http
+  namespace: media
+spec:
+  entryPoints:
+    - web # Port 80
+  routes:
+    - match: Host(`adguard.<YOUR_PUBLIC_IP>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: adguard
+          port: 3000
+    - match: Host(`adguard.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      services:
+        - name: adguard
+          port: 3000
+---
+# AdGuard HTTPS (main route)
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: adguard-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure # Port 443
+  routes:
+    - match: Host(`adguard.<YOUR_PUBLIC_IP>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: adguard
+          port: 3000
+    - match: Host(`adguard.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: adguard
+          port: 3000
+  tls:
+    certResolver: letsencrypt # Automatic HTTPS certificate
+
