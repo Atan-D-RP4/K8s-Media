@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: navidrome-config
+  namespace: media
+data:
+  navidrome.toml: |
+    # Navidrome Configuration File
+
+    # General settings
+    MusicFolder = "/music" # Path to the folder containing your music files
+    DataFolder = "/config" # Path to the folder where Navidrome stores its data
+
+    # Server settings
+    Address = "0.0.0.0" # Listen on all interfaces
+    Port = 4533 # Port for the web interface and API
+
+    # Database settings
+    DatabaseUrl = "sqlite3:/config/navidrome.db" # Path to the SQLite database
+
+    # Transcoding settings
+    [Transcoding]
+    Enabled = true
+    TempDir = "/config/transcoding" # Temporary directory for transcoding cache
+
+    # Logging settings
+    LogLevel = "info" # Log verbosity level ("trace", "debug", "info", "warn", "error")
+    LogFile = "/config/navidrome.log" # Path to the log file
+

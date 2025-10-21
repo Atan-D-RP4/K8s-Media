@@ -1,0 +1,23 @@
+# Navidrome Service Manifest for Kubernetes
+apiVersion: v1
+kind: Service
+metadata:
+  name: navidrome
+  namespace: media
+spec:
+  type: NodePort
+  selector:
+    app: slskd
+  ports:
+    - name: http
+      port: 4530
+      targetPort: 4530
+      nodePort: 30430
+    - name: https
+      port: 4531
+      targetPort: 4531
+      nodePort: 30431
+    - name: navidrome
+      port: 4533
+      targetPort: 4533
+      nodePort: 30433 # External access port

@@ -1,0 +1,51 @@
+# Navidrome Ingress Route Manifest
+
+# Navidrome HTTP (redirect to HTTPS)
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: navidrome-http
+  namespace: media
+spec:
+  entryPoints:
+    - web # Port 80
+  routes:
+    - match: Host(`navidrome.<YOUR_PUBLIC_IP>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: navidrome
+          port: 4530
+    - match: Host(`navidrome.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      services:
+        - name: navidrome
+          port: 4530
+---
+# Navidrome HTTPS (main route)
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: navidrome-https
+  namespace: media
+spec:
+  entryPoints:
+    - websecure # Port 443
+  routes:
+    - match: Host(`navidrome.<YOUR_PUBLIC_IP>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: navidrome
+          port: 4530
+    - match: Host(`navidrome.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: navidrome
+          port: 4530
+  tls:
+    certResolver: letsencrypt # Automatic HTTPS certificate
