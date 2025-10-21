@@ -22,12 +22,12 @@ Apply the manifests in the following order:
 
 ```bash
 kubectl apply -f manifests/namespaces/ # 1. Namespaces
-kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.0/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml # 2. Traefik CRDs (one-time setup):
-kubectl apply -f manifests/storage/ # 3. Storage
-kubectl apply -f manifests/configs/ # 4. ConfigMaps
-kubectl apply -f manifests/traefik/ # 5. Traefik RBAC and deployment
-kubectl apply -f manifests/deployments/ # 6. Application deployments
-kubectl apply -f manifests/services/ # 7. Services
+kubectl apply -f manifests/storage/ # 2. Storage
+kubectl apply -f manifests/configs/ # 3. ConfigMaps
+kubectl apply -f manifests/deployments/ # 4. Application deployments
+kubectl apply -f manifests/services/ # 5. Services
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.1/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml # 6. Traefik CRDs (one-time setup):
+kubectl apply -f manifests/traefik/ # 7. Traefik RBAC and deployment
 kubectl apply -f manifests/ingress/middlewares.yml # 8. Ingress middlewares
 kubectl apply -f manifests/ingress/routes # 9. Ingress routes
 kubectl apply -f manifests/jobs/ # 10. Jobs
@@ -38,9 +38,9 @@ kubectl apply -f manifests/jobs/ # 10. Jobs
 Before deploying, ensure you update:
 
 1. Domain names in ingress/routes.yaml (replace YOUR_PUBLIC_IP)
-1. Storage paths in storage/media-storage.yaml
-1. Credentials in configs/\*.yaml
-1. Email in traefik/deployment.yaml
+2. Storage paths in storage/media-storage.yaml
+3. Credentials in configs/\*.yaml
+4. Email in traefik/deployment.yaml
 
 ## Port Forwarding
 

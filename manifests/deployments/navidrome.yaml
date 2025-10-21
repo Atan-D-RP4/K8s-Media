@@ -14,6 +14,9 @@ spec:
       labels:
         app: navidrome
     spec:
+      # Security context to run as non-root user
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: navidrome
           image: deluan/navidrome:latest
@@ -29,13 +32,36 @@ spec:
             - name: media-storage
               mountPath: /config
               subPath: navidrome/config
-          # resources:
-          #   requests:
-          #     memory: "128Mi"
-          #     cpu: "50m"
-          #   limits:
-          #     memory: "512Mi"
-          #     cpu: "500m"
+            # Mount music directory
+            - name: media-storage
+              mountPath: /music
+              subPath: music
+            # Mount custom config file
+            - name: navidrome-config
+              mountPath: /config/navidrome.toml
+              subPath: navidrome.toml
+          # Resource requests and limits
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # Probes for health checks
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4533
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          # Probe to check if the application is ready to serve traffic
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4533
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: media-storage
           persistentVolumeClaim:
