@@ -9,6 +9,8 @@ sudo pkill -f containerd
 
 # Stop containerd-related services if running
 sudo systemctl list-units | grep containerd | awk '{print $1}' | xargs -r sudo systemctl stop
+# Stop any remaining kubepods services if running
+sudo systemctl list-units | grep kubepods | awk '{print $1}' | xargs -r sudo systemctl stop
 
 # Run the built-in k3s killall helper if it exists
 if [ -x /usr/bin/k3s-killall.sh ]; then

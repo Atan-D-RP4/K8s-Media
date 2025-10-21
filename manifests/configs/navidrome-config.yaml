@@ -1,3 +1,4 @@
+# ConfigMap for Navidrome media server configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:

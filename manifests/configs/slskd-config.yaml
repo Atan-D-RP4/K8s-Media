@@ -1,3 +1,4 @@
+# ConfigMap for Soulseek Daemon (slskd) configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,4 +24,3 @@ data:
             key: 7U+1lKLzA7WDfuB98O0KLmF5XlRazhdDD20dDojyo9qxNrU2SnpjTYPbVXeNKByO
             role: administrator
             cidr: 0.0.0.0/0,::/0  # Allow access from any IP
-
