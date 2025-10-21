@@ -155,6 +155,7 @@ data:
       <UpdateMechanism>Docker</UpdateMechanism>
     </Config>
 
+
 # ================================
 # DEPLOYMENTS
 # ================================
@@ -391,7 +392,7 @@ spec:
       port: 5031
       targetPort: 5031
       nodePort: 30031
-    - name: soulseek
+    - name: slskd-peer
       port: 50300
       targetPort: 50300
       nodePort: 30300 # External port for peer connections
@@ -871,8 +872,6 @@ spec:
 #    - Host path: /home/atan/Media/music
 #    - Email for Let's Encrypt
 ---
-
-
 # 2. Install Traefik CRDs:
 #    kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.0/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
 

@@ -1,3 +1,4 @@
+# Lidaar Service Manifest for Kubernetes
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,3 +13,11 @@ spec:
       port: 8686 # Internal cluster port
       targetPort: 8686 # Container port
       nodePort: 30086 # External access port
+    - name: https
+      port: 8687 # Internal cluster port
+      targetPort: 8687 # Container port
+      nodePort: 30087 # External access port
+    - name: lidarr-api
+      port: 8688 # Internal cluster port
+      targetPort: 8688 # Container port
+      nodePort: 30088 # External access port

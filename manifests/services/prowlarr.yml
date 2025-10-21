@@ -1,3 +1,4 @@
+# Prowlarr Service Manifest for Kubernetes
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,3 +13,11 @@ spec:
       port: 9696
       targetPort: 9696
       nodePort: 30096
+    - name: https
+      port: 9697
+      targetPort: 9697
+      nodePort: 30097
+    - name: prowlarr-api
+      port: 9698
+      targetPort: 9698
+      nodePort: 30098

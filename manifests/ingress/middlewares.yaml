@@ -1,3 +1,5 @@
+# Traefik Middlewares manifest for Kubernetes. Configures various middlewares used by Traefik.
+
 # ======================
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -25,7 +27,6 @@ spec:
     stsIncludeSubdomains: true
     stsPreload: true
 ---
-# ======================
 
 # ======================
 apiVersion: traefik.io/v1alpha1

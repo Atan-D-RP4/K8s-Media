@@ -1,3 +1,5 @@
+# Prowlarr Ingress Route Manifest
+
 # Prowlarr HTTP (redirects to HTTPS)
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -8,7 +10,14 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`prowlarr.192.168.0.6.sslip.io`)
+    - match: Host(`prowlarr.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https
+      services:
+        - name: prowlarr
+          port: 9696
+    - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
         - name: redirect-https
@@ -26,7 +35,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`prowlarr.192.168.0.6.sslip.io`)
+    - match: Host(`prowlarr.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: prowlarr
+          port: 9696
+    - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
         - name: security-headers
@@ -35,4 +51,3 @@ spec:
           port: 9696
   tls:
     certResolver: letsencrypt
-

@@ -1,3 +1,5 @@
+# Lidarr Ingress Route Manifest
+
 # Lidarr HTTP (redirects to HTTPS)
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -8,7 +10,14 @@ spec:
   entryPoints:
     - web # Port 80
   routes:
-    - match: Host(`lidarr.192.168.0.6.sslip.io`)
+    - match: Host(`lidarr.<YOUR_DOMAIN>`.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: redirect-https # Redirect to HTTPS
+      services:
+        - name: lidarr
+          port: 8686
+    - match: Host(`lidarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
         - name: redirect-https # Redirect to HTTPS
@@ -26,7 +35,14 @@ spec:
   entryPoints:
     - websecure # Port 443
   routes:
-    - match: Host(`lidarr.192.168.0.6.sslip.io`)
+    - match: Host(`lidarr.<YOUR_DOMAIN>.sslip.io`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: lidarr
+          port: 8686
+    - match: Host(`lidarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
         - name: security-headers

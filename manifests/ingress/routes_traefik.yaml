@@ -1,3 +1,5 @@
+# Traefik Ingress Route Manifest
+
 # Traefik Dashboard (protected with basic auth)
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -8,7 +10,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`traefik.192.168.0.6.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+    - match: Host(`traefik.<YOUR_DOMAIN>.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      kind: Rule
+      middlewares:
+        - name: dashboard-auth # Requires login
+      services:
+        - name: api@internal # Internal Traefik API service
+          kind: TraefikService
+    - match: Host(`traefik.<YOUR_PUBLIC_IP>.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
       kind: Rule
       middlewares:
         - name: dashboard-auth # Requires login
@@ -17,4 +26,3 @@ spec:
           kind: TraefikService
   tls:
     certResolver: letsencrypt
-

@@ -1,3 +1,4 @@
+# Prowlarr Deployment manifest for Kubernetes
 apiVersion: apps/v1
 kind: Deployment
 metadata:
