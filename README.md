@@ -26,7 +26,8 @@ kubectl apply -f manifests/storage/ # 2. Storage
 kubectl apply -f manifests/configs/ # 3. ConfigMaps
 kubectl apply -f manifests/deployments/ # 4. Application deployments
 kubectl apply -f manifests/services/ # 5. Services
-kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.1/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml # 6. Traefik CRDs (one-time setup):
+# 6. Traefik CRDs (one-time setup):
+kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.1/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
 kubectl apply -f manifests/traefik/ # 7. Traefik RBAC and deployment
 kubectl apply -f manifests/ingress/middlewares.yml # 8. Ingress middlewares
 kubectl apply -f manifests/ingress/routes # 9. Ingress routes
@@ -53,19 +54,25 @@ Configure your router to forward:
 
 After deployment, services will be available at:
 
-- https://lidarr.YOUR_PUBLIC_IP.sslip.io
-- https://prowlarr.YOUR_PUBLIC_IP.sslip.io
-- https://slskd.YOUR_PUBLIC_IP.sslip.io
-- https://traefik.YOUR_PUBLIC_IP.sslip.io/dashboard/
 - https://<service>.\<YOUR_PUBLIC_IP>.sslip.io
+
+- Examples:
+
+  - https://lidarr.YOUR_PUBLIC_IP.sslip.io
+  - https://prowlarr.YOUR_PUBLIC_IP.sslip.io
+  - https://slskd.YOUR_PUBLIC_IP.sslip.io
+  - https://traefik.YOUR_PUBLIC_IP.sslip.io/dashboard/
 
 If using a custom domain:
 
-- https://lidarr.\<YOUR_DOMAIN>
-- https://prowlarr.\<YOUR_DOMAIN>
-- https://slskd.\<YOUR_DOMAIN>
-- https://traefik.\<YOUR_DOMAIN>/dashboard/
 - https://service.\<YOUR_DOMAIN>
+
+- Examples:
+
+  - https://lidarr.\<YOUR_DOMAIN>
+  - https://prowlarr.\<YOUR_DOMAIN>
+  - https://slskd.\<YOUR_DOMAIN>
+  - https://traefik.\<YOUR_DOMAIN>/dashboard/
 
 ## Extension
 

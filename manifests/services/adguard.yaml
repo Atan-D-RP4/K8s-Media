@@ -13,11 +13,14 @@ spec:
       protocol: TCP
       port: 3000 # Admin Web Interface
       targetPort: 3000 # Container Port
+      nodePort: 32000 # Fixed NodePort
     - name: dns-tcp
       protocol: TCP
       port: 53 # DNS TCP Port
       targetPort: 53 # Container Port
+      nodePort: 32053 # Fixed NodePort
     - name: dns-udp
-      protocol: UDP  # ✅ Fixed: was incomplete
+      protocol: UDP
       port: 53 # DNS UDP Port
       targetPort: 53 # Container Port
+      nodePort: 32054 # Fixed NodePort
