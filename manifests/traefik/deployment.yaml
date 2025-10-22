@@ -16,9 +16,30 @@ spec:
         app: traefik
     spec:
       serviceAccountName: traefik
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532  # Traefik's default non-root user
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: traefik
           image: traefik:v3.0
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE  # Required for binding to ports 80/443
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
           args:
             # Enable dashboard (accessible at /dashboard/)
             - --api.dashboard=true

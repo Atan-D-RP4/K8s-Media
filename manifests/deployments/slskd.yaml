@@ -14,6 +14,14 @@ spec:
       labels:
         app: slskd
     spec:
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: slskd
           image: slskd/slskd:latest
@@ -21,6 +29,17 @@ spec:
             - containerPort: 5030 # HTTP web interface
             - containerPort: 5031 # HTTPS web interface
             - containerPort: 50300 # Soulseek peer connections
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false  # Slskd needs to write to /app and /downloads
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           env:
             - name: PUID
               value: "1000" # User ID for file permissions

@@ -14,11 +14,30 @@ spec:
       labels:
         app: lidarr
     spec:
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: lidarr
           image: ghcr.io/hotio/lidarr:pr-plugins
           ports:
             - containerPort: 8686
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false  # Lidarr needs to write to /config
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           env:
             - name: PUID
               value: "1000"

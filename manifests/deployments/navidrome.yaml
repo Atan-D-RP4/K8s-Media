@@ -14,14 +14,30 @@ spec:
       labels:
         app: navidrome
     spec:
-      # Security context to run as non-root user
+      # Pod-level security context
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: navidrome
           image: deluan/navidrome:latest
           ports:
             - containerPort: 4533
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false  # Navidrome needs to write to /config
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           env:
             - name: PUID
               value: "1000"

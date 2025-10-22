@@ -14,9 +14,14 @@ spec:
       labels:
         app: adguard
     spec:
-      # Set security context for the pod
+      # Pod-level security context
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: adguard
           image: adguard/adguardhome:latest
@@ -26,6 +31,19 @@ spec:
               protocol: UDP
             - containerPort: 53
               protocol: TCP
+          # Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false  # AdGuard needs to write to work/config dirs
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE  # Required for binding to port 53
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
           volumeMounts:
             # Mount points for AdGuard Home data and configuration
             - name: adguard-data

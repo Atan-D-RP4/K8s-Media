@@ -1,0 +1,88 @@
+# Security Baseline Configuration Template
+# This file serves as a reference for security hardening standards
+# applied across all manifests in this cluster
+
+# Standard Pod Security Context Template
+# Apply this to all pod specs:
+#
+# spec:
+#   securityContext:
+#     runAsNonRoot: true
+#     runAsUser: 1000
+#     runAsGroup: 1000
+#     fsGroup: 1000
+#     seccompProfile:
+#       type: RuntimeDefault
+
+# Standard Container Security Context Template
+# Apply this to all container specs:
+#
+# securityContext:
+#   allowPrivilegeEscalation: false
+#   privileged: false
+#   readOnlyRootFilesystem: true  # Set to false if app needs write access
+#   capabilities:
+#     drop:
+#       - ALL
+#     add: []  # Only add specific capabilities if needed (e.g., NET_BIND_SERVICE)
+#   runAsNonRoot: true
+#   runAsUser: 1000
+#   runAsGroup: 1000
+
+# Resource Limits Template
+# Apply appropriate resource limits to all containers:
+#
+# resources:
+#   requests:
+#     memory: "128Mi"
+#     cpu: "50m"
+#   limits:
+#     memory: "512Mi"
+#     cpu: "500m"
+
+# Health Checks Template
+# Add health checks where applicable:
+#
+# livenessProbe:
+#   httpGet:
+#     path: /health
+#     port: 8080
+#   initialDelaySeconds: 30
+#   periodSeconds: 10
+# readinessProbe:
+#   httpGet:
+#     path: /ready
+#     port: 8080
+#   initialDelaySeconds: 5
+#   periodSeconds: 5
+
+---
+# Security Standards Applied:
+# 
+# 1. Non-root execution: All containers run as non-root users
+# 2. Capability dropping: All unnecessary Linux capabilities are dropped
+# 3. Privilege escalation prevention: allowPrivilegeEscalation set to false
+# 4. Seccomp profiles: Runtime default seccomp profiles enabled
+# 5. Read-only root filesystem: Enabled where possible
+# 6. Resource limits: CPU and memory limits set for all containers
+# 7. Network policies: Default deny with explicit allow rules
+# 8. Pod Security Standards: Restricted profile enforced at namespace level
+# 9. RBAC: Least privilege access for service accounts
+# 10. Pod Disruption Budgets: High availability for critical services
+
+# Exceptions and Justifications:
+#
+# - readOnlyRootFilesystem=false: Required for applications that need to write
+#   to their working directories (config files, databases, logs)
+#
+# - NET_BIND_SERVICE capability: Required for services binding to privileged
+#   ports (<1024) like DNS (53) and HTTP/HTTPS (80/443)
+#
+# - Traefik user 65532: Uses Traefik's default non-root user instead of 1000
+#   for consistency with upstream container image
+
+# Compliance:
+# - CIS Kubernetes Benchmark: Addresses multiple controls
+# - NIST Cybersecurity Framework: Implements protective controls
+# - Pod Security Standards: Restricted profile compliance
+# - Defense in Depth: Multiple layers of security controls

@@ -9,7 +9,7 @@ spec:
   entryPoints:
     - web # Port 80
   routes:
-    - match: Host(`lidarr.<YOUR_DOMAIN>`.sslip.io`)
+    - match: Host(`lidarr.<YOUR_DOMAIN>.sslip.io`)
       kind: Rule
       middlewares:
         - name: redirect-https # Redirect to HTTPS

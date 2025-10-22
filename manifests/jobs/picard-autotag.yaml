@@ -12,9 +12,28 @@ spec:
       backoffLimit: 2
       template:
         spec:
+          # Pod-level security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: picard
               image: mikenye/picard:latest
+              # Container-level security context
+              securityContext:
+                allowPrivilegeEscalation: false
+                privileged: false
+                readOnlyRootFilesystem: false  # Picard needs to write to /music for tagging
+                capabilities:
+                  drop:
+                    - ALL
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
               command:
                 - sh
                 - -c

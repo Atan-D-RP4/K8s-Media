@@ -1,0 +1,36 @@
+# Pod Disruption Budgets for high availability
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: traefik-pdb
+  namespace: traefik
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: traefik
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: adguard-pdb
+  namespace: media
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: adguard
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: navidrome-pdb
+  namespace: media
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: navidrome
