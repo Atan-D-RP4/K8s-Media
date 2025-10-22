@@ -155,7 +155,6 @@ data:
       <UpdateMechanism>Docker</UpdateMechanism>
     </Config>
 
-
 # ================================
 # DEPLOYMENTS
 # ================================
@@ -862,18 +861,10 @@ spec:
   tls:
     certResolver: letsencrypt
 
-# ================================
-# DEPLOYMENT INSTRUCTIONS
-# ================================
-# 1. Update all TODO items in this file:
-#    - Domain names: Replace YOUR_PUBLIC_IP with your actual public IP
-#      Find it with: curl ifconfig.me
-#    - Passwords in ConfigMaps (search for "TODO")
-#    - Host path: /home/atan/Media/music
-#    - Email for Let's Encrypt
----
 # 2. Install Traefik CRDs:
 #    kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.0/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+---
+
 
 # 3. Apply this manifest:
 #    kubectl apply -f this-file.yaml

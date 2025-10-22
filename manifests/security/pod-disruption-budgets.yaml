@@ -1,36 +1,99 @@
-# Pod Disruption Budgets for high availability
----
+# =============================================================================
+# Pod Disruption Budgets - High Availability During Maintenance
+# =============================================================================
+# 
+# Pod Disruption Budgets (PDBs) ensure service availability during planned
+# maintenance operations by controlling how many pods can be unavailable
+# simultaneously. They protect against:
+# - Node drains during cluster upgrades
+# - Voluntary pod evictions
+# - Cluster autoscaling operations
+# - Manual pod deletions
+# 
+# PDBs work by:
+# 1. Defining minimum availability requirements for applications
+# 2. Blocking disruptive operations that would violate these requirements
+# 3. Allowing operations to proceed only when sufficient replicas remain
+# 4. Ensuring critical services maintain availability during maintenance
+# 
+# These PDBs protect the most critical services in the media stack:
+# - Traefik: Ingress controller (all external access depends on it)
+# - AdGuard: DNS service (network connectivity depends on it)
+# - Navidrome: Music streaming (user-facing service)
+# 
+# Documentation:
+# - Pod Disruption Budgets: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+# - Voluntary Disruptions: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#voluntary-and-involuntary-disruptions
+# - Cluster Maintenance: https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/
+# =============================================================================
+# =============================================================================
+# Traefik Pod Disruption Budget - Ingress Controller Availability
+# =============================================================================
+# Protects the Traefik ingress controller during maintenance operations.
+# Since Traefik is the single point of entry for all external web traffic,
+# maintaining its availability is critical for accessing all media applications.
+# 
+# Without this PDB, cluster maintenance could temporarily make all web
+# interfaces inaccessible, disrupting music streaming and management tasks.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: traefik-pdb
-  namespace: traefik
+  name: traefik-pdb # Unique name for this PDB
+  namespace: traefik # Must match the namespace of target pods
 spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: traefik
+  # Minimum availability requirement
+  minAvailable: 1 # At least 1 Traefik pod must remain running
+  # This ensures continuous external access
 
+  # Selector to identify which pods this PDB protects
+  selector:
+    matchLabels:
+      app: traefik # Must match the labels on Traefik pods
 ---
+# =============================================================================
+# AdGuard Pod Disruption Budget - DNS Service Availability
+# =============================================================================
+# Protects the AdGuard DNS service during maintenance operations.
+# Since AdGuard provides DNS resolution for the entire network, maintaining
+# its availability prevents network connectivity issues during maintenance.
+# 
+# Without this PDB, cluster maintenance could temporarily break DNS resolution,
+# affecting all network-dependent services and applications.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: adguard-pdb
-  namespace: media
+  name: adguard-pdb # Unique name for this PDB
+  namespace: media # Must match the namespace of target pods
 spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: adguard
+  # Minimum availability requirement
+  minAvailable: 1 # At least 1 AdGuard pod must remain running
+  # This ensures continuous DNS service
 
+  # Selector to identify which pods this PDB protects
+  selector:
+    matchLabels:
+      app: adguard # Must match the labels on AdGuard pods
 ---
+# =============================================================================
+# Navidrome Pod Disruption Budget - Music Streaming Service Availability
+# =============================================================================
+# Protects the Navidrome music streaming service during maintenance operations.
+# Since Navidrome is the primary user-facing service for music consumption,
+# maintaining its availability ensures uninterrupted music streaming.
+# 
+# Without this PDB, cluster maintenance could interrupt active music streaming
+# sessions and prevent users from accessing their music library.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: navidrome-pdb
-  namespace: media
+  name: navidrome-pdb # Unique name for this PDB
+  namespace: media # Must match the namespace of target pods
 spec:
-  minAvailable: 1
+  # Minimum availability requirement
+  minAvailable: 1 # At least 1 Navidrome pod must remain running
+  # This ensures continuous music streaming
+
+  # Selector to identify which pods this PDB protects
   selector:
     matchLabels:
-      app: navidrome
+      app: navidrome # Must match the labels on Navidrome pods

@@ -1,43 +1,72 @@
-# Network Policies for enhanced security
----
-# Default deny all ingress traffic in media namespace
+# =============================================================================
+# Network Policies - Microsegmentation and Traffic Control
+# =============================================================================
+# 
+# Network Policies provide microsegmentation within the Kubernetes cluster by:
+# - Controlling which pods can communicate with each other
+# - Implementing default-deny security posture
+# - Allowing only explicitly permitted traffic flows
+# - Providing defense-in-depth security controls
+# - Reducing blast radius in case of compromise
+#
+# These policies implement a zero-trust network model where all traffic is
+# denied by default, and only required communication paths are explicitly allowed.
+#
+# Documentation:
+# - Network Policies: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+# - Zero Trust: https://www.nist.gov/publications/zero-trust-architecture
+# - Microsegmentation: https://en.wikipedia.org/wiki/Microsegmentation
+# =============================================================================
+# =============================================================================
+# Default Deny Ingress - Media Namespace
+# =============================================================================
+# This policy denies all incoming traffic to pods in the media namespace by default.
+# This creates a secure baseline where only explicitly allowed traffic can reach
+# the media applications.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
   namespace: media
 spec:
-  podSelector: {}
+  podSelector: {} # Apply to all pods in this namespace
   policyTypes:
-  - Ingress
-
+    - Ingress # Control incoming traffic only
 ---
-# Allow ingress from Traefik namespace to media namespace
+# =============================================================================
+# Allow Traefik Ingress - Media Namespace
+# =============================================================================
+# This policy allows incoming traffic from the Traefik namespace to media applications.
+# Traefik acts as the ingress controller and needs to route external traffic to
+# the media services. It also allows DNS traffic to AdGuard from anywhere since
+# AdGuard functions as a network-wide DNS server.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-traefik-ingress
   namespace: media
 spec:
-  podSelector: {}
+  podSelector: {} # Apply to all pods in this namespace
   policyTypes:
-  - Ingress
+    - Ingress # Control incoming traffic
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: traefik
-  # Allow DNS traffic to AdGuard from anywhere (required for DNS service)
-  - to:
-    - podSelector:
-        matchLabels:
-          app: adguard
-    ports:
-    - protocol: TCP
-      port: 53
-    - protocol: UDP
-      port: 53
-
+    # Allow traffic from Traefik namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: traefik # Must match the traefik namespace label
+    # Allow DNS traffic to AdGuard from anywhere
+    # AdGuard serves as a network-wide DNS server, so it needs to accept
+    # DNS queries from any source (including external networks)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: adguard # Target AdGuard pods specifically
+      ports:
+        - protocol: TCP # DNS over TCP
+          port: 53
+        - protocol: UDP # DNS over UDP (most common)
+          port: 53
 ---
 # Allow inter-pod communication within media namespace
 apiVersion: networking.k8s.io/v1
@@ -48,13 +77,12 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-  - Ingress
+    - Ingress
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: media
-
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: media
 ---
 # Default deny all ingress traffic in traefik namespace
 apiVersion: networking.k8s.io/v1
@@ -65,8 +93,7 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-  - Ingress
-
+    - Ingress
 ---
 # Allow external traffic to Traefik (required for ingress controller)
 apiVersion: networking.k8s.io/v1
@@ -79,10 +106,9 @@ spec:
     matchLabels:
       app: traefik
   policyTypes:
-  - Ingress
+    - Ingress
   ingress:
-  - {} # Allow all ingress to Traefik (it's an ingress controller)
-
+    - {} # Allow all ingress to Traefik (it's an ingress controller)
 ---
 # Allow egress for DNS resolution and external API calls
 apiVersion: networking.k8s.io/v1
@@ -93,26 +119,25 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-  - Egress
+    - Egress
   egress:
-  # Allow DNS resolution
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-    - protocol: TCP
-      port: 53
-  # Allow HTTPS for external API calls (music databases, etc.)
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 443
-  # Allow HTTP for external API calls
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 80
-
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS for external API calls (music databases, etc.)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for external API calls
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
 ---
 # Allow egress for Traefik namespace
 apiVersion: networking.k8s.io/v1
@@ -123,27 +148,27 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
-  - Egress
+    - Egress
   egress:
-  # Allow DNS resolution
-  - to: []
-    ports:
-    - protocol: UDP
-      port: 53
-    - protocol: TCP
-      port: 53
-  # Allow HTTPS for Let's Encrypt and external services
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 443
-  # Allow HTTP for Let's Encrypt challenges
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 80
-  # Allow communication to media namespace
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: media
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS for Let's Encrypt and external services
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for Let's Encrypt challenges
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 80
+    # Allow communication to media namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: media

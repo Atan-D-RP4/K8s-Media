@@ -25,4 +25,3 @@ data:
       <InstanceName>Prowlarr</InstanceName>
       <UpdateMechanism>Docker</UpdateMechanism>
     </Config>
-

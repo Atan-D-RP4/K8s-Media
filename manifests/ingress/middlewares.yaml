@@ -1,49 +1,95 @@
-# Traefik Middlewares manifest for Kubernetes. Configures various middlewares used by Traefik.
-
-# ======================
+# =============================================================================
+# Traefik Middlewares - Traffic Processing and Security Components
+# =============================================================================
+# 
+# Traefik Middlewares are components that process HTTP requests and responses
+# before they reach the backend services. They provide:
+# - Security enhancements (HTTPS redirects, security headers)
+# - Authentication and authorization (basic auth, OAuth)
+# - Request/response modification (headers, redirects)
+# - Rate limiting and circuit breakers
+# - Compression and caching
+# 
+# These middlewares are applied to IngressRoutes to enhance security and
+# functionality across all media applications in a consistent manner.
+# 
+# Documentation:
+# - Traefik Middlewares: https://doc.traefik.io/traefik/middlewares/overview/
+# - HTTP Security Headers: https://owasp.org/www-project-secure-headers/
+# - HSTS: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+# =============================================================================
+# =============================================================================
+# HTTPS Redirect Middleware - Forces Secure Connections
+# =============================================================================
+# This middleware automatically redirects all HTTP traffic to HTTPS,
+# ensuring all communication is encrypted. The permanent redirect (301)
+# tells browsers and search engines to always use HTTPS for future requests.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: redirect-https
-  namespace: media
+  name: redirect-https # Middleware name referenced in IngressRoutes
+  namespace: media # Available to media namespace applications
 spec:
   redirectScheme:
-    scheme: https
-    permanent: true
+    scheme: https # Redirect to HTTPS protocol
+    permanent: true # Use HTTP 301 (permanent redirect) status code
 ---
-
-# ======================
+# =============================================================================
+# Security Headers Middleware - Enhanced HTTP Security
+# =============================================================================
+# This middleware adds security headers to all responses to protect against
+# common web vulnerabilities and enhance privacy. It implements security
+# best practices recommended by OWASP and security experts.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: security-headers
-  namespace: media
+  name: security-headers # Middleware name referenced in IngressRoutes
+  namespace: media # Available to media namespace applications
 spec:
   headers:
+    # Custom response headers for additional security
     customResponseHeaders:
-      X-Robots-Tag: "noindex, nofollow" # Don't index in search engines
-    sslRedirect: true
-    stsSeconds: 31536000 # Enable HSTS (force HTTPS for 1 year)
-    stsIncludeSubdomains: true
-    stsPreload: true
+      # Prevent search engines from indexing private media applications
+      X-Robots-Tag: "noindex, nofollow"
+    # SSL/TLS security configurations
+    sslRedirect: true # Force HTTPS redirects
+    stsSeconds: 31536000 # HSTS: Force HTTPS for 1 year (365 days)
+    stsIncludeSubdomains: true # Apply HSTS to all subdomains
+    stsPreload: true # Allow inclusion in browser HSTS preload lists
 ---
-
-# ======================
+# =============================================================================
+# Dashboard Authentication Middleware - Traefik Dashboard Protection
+# =============================================================================
+# This middleware protects the Traefik dashboard with HTTP Basic Authentication.
+# It prevents unauthorized access to the monitoring and configuration interface.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: dashboard-auth
-  namespace: traefik
+  name: dashboard-auth # Middleware name referenced in dashboard IngressRoute
+  namespace: traefik # Available to traefik namespace (dashboard location)
 spec:
   basicAuth:
-    secret: traefik-dashboard-auth
+    secret: traefik-dashboard-auth # References the secret containing credentials
 ---
+# =============================================================================
+# Dashboard Authentication Secret - Credentials Storage
+# =============================================================================
+# This secret stores the username and password for Traefik dashboard access.
+# The credentials are base64 encoded in htpasswd format.
+# 
+# Default credentials (change in production):
+# Username: admin
+# Password: admin
+# 
+# To generate new credentials:
+# htpasswd -nb username password | base64
 apiVersion: v1
 kind: Secret
 metadata:
-  name: traefik-dashboard-auth
-  namespace: traefik
-type: Opaque
+  name: traefik-dashboard-auth # Secret name referenced by dashboard-auth middleware
+  namespace: traefik # Must be in same namespace as middleware
+type: Opaque # Generic secret type for arbitrary data
 data:
+  # Base64 encoded htpasswd format: username:hashed_password
+  # Current: admin:admin (CHANGE THIS IN PRODUCTION!)
   users: YWRtaW46JGFwcjEkNXg1L0UzNC8kZWswSmNDbkVXVDYySmhDMm92M3V0MAoK
-# ======================

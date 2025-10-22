@@ -1,51 +1,93 @@
-# AdGuard Ingress Route Manifest
-# AdGuard HTTP (redirect to HTTPS)
+# =============================================================================
+# AdGuard Home Ingress Routes - External Access to DNS Ad Blocker
+# =============================================================================
+# 
+# These IngressRoutes provide external web access to the AdGuard Home DNS
+# ad blocker administration interface through Traefik. They implement:
+# - Automatic HTTPS redirects for security
+# - SSL certificate management via Let's Encrypt
+# - Security headers for enhanced protection
+# - Multiple domain support (IP and custom domains)
+# 
+# AdGuard Home provides a web interface for:
+# 1. Configuring DNS filtering and ad blocking rules
+# 2. Monitoring DNS query logs and statistics
+# 3. Managing blocklists and allowlists
+# 4. Setting up parental controls and safe browsing
+# 5. Configuring upstream DNS servers
+# 
+# Note: This only provides access to the web administration interface (port 3000).
+# DNS service (port 53) is handled separately through the LoadBalancer service.
+# 
+# Documentation:
+# - Traefik IngressRoute: https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/
+# - AdGuard Home: https://github.com/AdguardTeam/AdGuardHome/wiki
+# - DNS Filtering: https://adguard.com/en/blog/how-ad-blocking-is-done.html
+# =============================================================================
+# =============================================================================
+# AdGuard HTTP Route - Automatic HTTPS Redirect
+# =============================================================================
+# This route handles all HTTP (port 80) traffic to AdGuard and redirects
+# it to HTTPS for secure communication. This protects administrative
+# credentials and DNS configuration data.
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: adguard-http
-  namespace: media
+  name: adguard-http # Unique name for this ingress route
+  namespace: media # Must match the namespace of target service
 spec:
+  # Entry points define which Traefik ports this route listens on
   entryPoints:
-    - web # Port 80
+    - web # HTTP entry point (port 80)
+  # Routes define the matching rules and actions
   routes:
+    # Route for IP-based access (useful for local/development access)
     - match: Host(`adguard.<YOUR_PUBLIC_IP>.sslip.io`)
-      kind: Rule
+      kind: Rule # Standard routing rule
       middlewares:
-        - name: redirect-https # Redirect to HTTPS
+        - name: redirect-https # Apply HTTPS redirect middleware
       services:
-        - name: adguard
-          port: 3000
+        - name: adguard # Target service name
+          port: 3000 # Service port (AdGuard web interface)
+    # Route for custom domain access (replace <YOUR_DOMAIN> with actual domain)
     - match: Host(`adguard.<YOUR_DOMAIN>.sslip.io`)
       kind: Rule
       services:
         - name: adguard
           port: 3000
 ---
-# AdGuard HTTPS (main route)
+# =============================================================================
+# AdGuard HTTPS Route - Secure DNS Administration Access
+# =============================================================================
+# This route handles all HTTPS (port 443) traffic to AdGuard, providing
+# secure access to the DNS administration interface with automatic SSL certificates.
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: adguard-https
-  namespace: media
+  name: adguard-https # Unique name for this ingress route
+  namespace: media # Must match the namespace of target service
 spec:
+  # Entry points define which Traefik ports this route listens on
   entryPoints:
-    - websecure # Port 443
+    - websecure # HTTPS entry point (port 443)
+  # Routes define the matching rules and actions
   routes:
+    # Route for IP-based secure access
     - match: Host(`adguard.<YOUR_PUBLIC_IP>.sslip.io`)
-      kind: Rule
+      kind: Rule # Standard routing rule
       middlewares:
-        - name: security-headers
+        - name: security-headers # Apply security headers middleware
       services:
-        - name: adguard
-          port: 3000
+        - name: adguard # Target service name
+          port: 3000 # Service port for AdGuard web interface
+    # Route for custom domain secure access
     - match: Host(`adguard.<YOUR_DOMAIN>.sslip.io`)
       kind: Rule
       middlewares:
-        - name: security-headers
+        - name: security-headers # Apply security headers middleware
       services:
         - name: adguard
           port: 3000
+  # TLS configuration for automatic SSL certificate management
   tls:
-    certResolver: letsencrypt # Automatic HTTPS certificate
-
+    certResolver: letsencrypt # Use Let's Encrypt for automatic certificates

@@ -1,95 +1,141 @@
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# Traefik Deployment - Modern Reverse Proxy and Load Balancer
+# =============================================================================
+# 
+# Traefik is a modern HTTP reverse proxy and load balancer that:
+# - Automatically discovers services in Kubernetes
+# - Provides SSL/TLS termination with automatic Let's Encrypt certificates
+# - Routes traffic based on rules defined in IngressRoute resources
+# - Offers a web dashboard for monitoring and configuration
+# - Supports multiple backends and protocols (HTTP, TCP, UDP)
+# - Handles load balancing and health checking automatically
+#
+# This deployment acts as the main entry point for all web traffic to your
+# media applications, providing secure HTTPS access and routing.
+#
+# Documentation:
+# - Traefik: https://doc.traefik.io/traefik/
+# - Kubernetes Ingress: https://kubernetes.io/docs/concepts/services-networking/ingress/
+# - Let's Encrypt: https://letsencrypt.org/docs/
+# - Reverse Proxy: https://en.wikipedia.org/wiki/Reverse_proxy
+# =============================================================================
+apiVersion: apps/v1 # API version for Deployment resources
+kind: Deployment # Resource type - manages a set of identical pods
 metadata:
-  name: traefik
-  namespace: traefik
+  name: traefik # Unique name for this deployment
+  namespace: traefik # Dedicated namespace for Traefik
   labels:
-    app: traefik
+    app: traefik # Labels for resource organization
 spec:
-  replicas: 1
+  # Replica configuration
+  replicas: 1 # Single instance (can be scaled for HA if needed)
+  # Selector defines which pods this deployment manages
   selector:
     matchLabels:
-      app: traefik
+      app: traefik # Must match the pod template labels below
+  # Template defines the pod specification
   template:
     metadata:
       labels:
-        app: traefik
+        app: traefik # Labels for pod identification and service selection
     spec:
+      # Service account for Kubernetes API access
+      # Traefik needs to read Kubernetes resources to discover services
       serviceAccountName: traefik
-      # Pod-level security context
+      # Pod-level security context - applies to all containers in the pod
+      # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532  # Traefik's default non-root user
-        runAsGroup: 65532
-        fsGroup: 65532
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true # Prevents running as root user (UID 0)
+        runAsUser: 65532 # Traefik's default non-root user ID
+        runAsGroup: 65532 # Traefik's default non-root group ID
+        fsGroup: 65532 # File system group for volume permissions
+        seccompProfile: # Secure computing mode profile
+          type: RuntimeDefault # Use container runtime's default seccomp profile
       containers:
         - name: traefik
+          # Container image - official Traefik v3.0 image
+          # Traefik v3 includes many security and performance improvements
           image: traefik:v3.0
-          # Container-level security context
+          # Container-level security context - additional security for this specific container
           securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            readOnlyRootFilesystem: true
-            capabilities:
+            allowPrivilegeEscalation: false # Prevents gaining additional privileges
+            privileged: false # Disables privileged mode
+            readOnlyRootFilesystem: true # Read-only filesystem (data goes to volumes)
+            capabilities: # Linux capabilities management
               drop:
-                - ALL
+                - ALL # Drop all capabilities first
               add:
-                - NET_BIND_SERVICE  # Required for binding to ports 80/443
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
+                - NET_BIND_SERVICE # Required to bind to privileged ports 80/443
+                # See: https://man7.org/linux/man-pages/man7/capabilities.7.html
+            runAsNonRoot: true # Enforce non-root execution
+            runAsUser: 65532 # Specific user ID (Traefik's default)
+            runAsGroup: 65532 # Specific group ID (Traefik's default)
+          # Traefik configuration arguments
+          # These configure Traefik's behavior and features
           args:
-            # Enable dashboard (accessible at /dashboard/)
-            - --api.dashboard=true
-            - --api.insecure=false
-            # Define entrypoints (ports where Traefik listens)
-            - --entrypoints.web.address=:80
-            - --entrypoints.websecure.address=:443
-            # Enable Kubernetes CRD provider (IngressRoute, etc.)
-            - --providers.kubernetescrd
-            - --providers.kubernetescrd.allowCrossNamespace=true
-            # Let's Encrypt configuration
-            # Uses HTTP challenge (works with NodePort + port forwarding)
-            - --certificatesresolvers.letsencrypt.acme.email=<YOUR_EMAIL>
-            - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
-            - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
-            - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-            # Logging
-            - --log.level=INFO
-            - --accesslog=true
+            # API and Dashboard configuration
+            - --api.dashboard=true # Enable web dashboard
+            - --api.insecure=false # Secure dashboard (requires auth)
+            # Entry points - where Traefik listens for incoming traffic
+            - --entrypoints.web.address=:80 # HTTP entry point
+            - --entrypoints.websecure.address=:443 # HTTPS entry point
+            # Kubernetes provider configuration
+            # Tells Traefik to watch Kubernetes for service discovery
+            - --providers.kubernetescrd # Enable Kubernetes CRD provider
+            - --providers.kubernetescrd.allowCrossNamespace=true # Allow cross-namespace routing
+            # Let's Encrypt automatic SSL certificate configuration
+            # Provides free SSL certificates for your domains
+            - --certificatesresolvers.letsencrypt.acme.email=<YOUR_EMAIL> # Replace with your email
+            - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json # Certificate storage
+            - --certificatesresolvers.letsencrypt.acme.httpchallenge=true # Use HTTP challenge
+            - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web # Challenge entry point
+            # Logging configuration
+            - --log.level=INFO # Log level (DEBUG, INFO, WARN, ERROR)
+            - --accesslog=true # Enable access logging
+          # Network ports the container exposes
           ports:
-            - name: web
+            - name: web # HTTP traffic
               containerPort: 80
-            - name: websecure
+            - name: websecure # HTTPS traffic
               containerPort: 443
-            - name: dashboard
+            - name: dashboard # Traefik dashboard and API
               containerPort: 8080
+          # Volume mounts - how storage is attached to the container
           volumeMounts:
-            - mountPath: /data
-              name: traefik-data
+            # Persistent storage for Traefik data (certificates, etc.)
+            - mountPath: /data # Mount point inside container
+              name: traefik-data # References volume defined below
+          # Resource limits and requests - controls CPU and memory usage
+          # Reverse proxies need consistent performance but are generally lightweight
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "500m"
+            requests: # Minimum resources guaranteed
+              memory: "128Mi" # 128 megabytes of RAM
+              cpu: "100m" # 0.1 CPU cores (100 millicores)
+            limits: # Maximum resources allowed
+              memory: "256Mi" # 256 megabytes of RAM maximum
+              cpu: "500m" # 0.5 CPU cores maximum
+          # Health checks - Kubernetes uses these to monitor application health
+          # Traefik provides a /ping endpoint for health checking
+
+          # Liveness probe - checks if the application is running
+          # If this fails, Kubernetes will restart the container
           livenessProbe:
             httpGet:
-              path: /ping
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
+              path: /ping # Traefik's health check endpoint
+              port: 8080 # Dashboard/API port
+            initialDelaySeconds: 10 # Wait 10 seconds before first check
+            periodSeconds: 10 # Check every 10 seconds
+          # Readiness probe - checks if the application is ready to serve traffic
+          # If this fails, Kubernetes will stop sending traffic to this pod
           readinessProbe:
             httpGet:
-              path: /ping
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
+              path: /ping # Traefik's health check endpoint
+              port: 8080 # Dashboard/API port
+            initialDelaySeconds: 5 # Wait 5 seconds before first check
+            periodSeconds: 5 # Check every 5 seconds
+      # Volumes - storage that can be mounted into containers
       volumes:
+        # Persistent storage for Traefik data (mainly Let's Encrypt certificates)
         - name: traefik-data
-          persistentVolumeClaim:
-            claimName: traefik-data-pvc
-
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: traefik-data-pvc # Must match PVC name in storage manifests

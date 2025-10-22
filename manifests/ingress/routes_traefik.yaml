@@ -1,28 +1,65 @@
-# Traefik Ingress Route Manifest
-
-# Traefik Dashboard (protected with basic auth)
+# =============================================================================
+# Traefik Dashboard Ingress Route - Secure Access to Monitoring Interface
+# =============================================================================
+# 
+# This IngressRoute provides secure external access to the Traefik dashboard
+# and API through Traefik itself. It implements:
+# - HTTPS-only access for security
+# - HTTP Basic Authentication for access control
+# - SSL certificate management via Let's Encrypt
+# - Path-based routing to dashboard and API endpoints
+# 
+# The Traefik dashboard provides:
+# 1. Real-time monitoring of services and routes
+# 2. Health status of backend services
+# 3. Request metrics and statistics
+# 4. Configuration visualization
+# 5. SSL certificate status and management
+# 
+# Security considerations:
+# - Dashboard is protected with HTTP Basic Authentication
+# - Only accessible via HTTPS
+# - Credentials stored in Kubernetes Secret
+# - Limited to specific paths (/api and /dashboard)
+# 
+# Documentation:
+# - Traefik Dashboard: https://doc.traefik.io/traefik/operations/dashboard/
+# - Traefik API: https://doc.traefik.io/traefik/operations/api/
+# - HTTP Basic Auth: https://doc.traefik.io/traefik/middlewares/http/basicauth/
+# =============================================================================
+# =============================================================================
+# Traefik Dashboard HTTPS Route - Authenticated Monitoring Access
+# =============================================================================
+# This route provides secure, authenticated access to the Traefik dashboard
+# and API. It uses HTTPS-only access and requires authentication to prevent
+# unauthorized access to sensitive monitoring and configuration data.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: traefik-dashboard
-  namespace: traefik
+  name: traefik-dashboard # Unique name for this ingress route
+  namespace: traefik # Must be in traefik namespace (where dashboard runs)
 spec:
+  # Entry points define which Traefik ports this route listens on
   entryPoints:
-    - websecure
+    - websecure # HTTPS-only access (port 443)
+  # Routes define the matching rules and actions
   routes:
+    # Route for custom domain access with path restrictions
     - match: Host(`traefik.<YOUR_DOMAIN>.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
-      kind: Rule
+      kind: Rule # Standard routing rule
       middlewares:
-        - name: dashboard-auth # Requires login
+        - name: dashboard-auth # Apply HTTP Basic Authentication
       services:
-        - name: api@internal # Internal Traefik API service
-          kind: TraefikService
+        - name: api@internal # Traefik's internal API service
+          kind: TraefikService # Special service type for Traefik internals
+    # Route for IP-based access with path restrictions
     - match: Host(`traefik.<YOUR_PUBLIC_IP>.sslip.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
       kind: Rule
       middlewares:
-        - name: dashboard-auth # Requires login
+        - name: dashboard-auth # Apply HTTP Basic Authentication
       services:
-        - name: api@internal # Internal Traefik API service
-          kind: TraefikService
+        - name: api@internal # Traefik's internal API service
+          kind: TraefikService # Special service type for Traefik internals
+  # TLS configuration for automatic SSL certificate management
   tls:
-    certResolver: letsencrypt
+    certResolver: letsencrypt # Use Let's Encrypt for automatic certificates

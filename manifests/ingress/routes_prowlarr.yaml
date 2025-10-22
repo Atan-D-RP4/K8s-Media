@@ -1,53 +1,92 @@
-# Prowlarr Ingress Route Manifest
-
-# Prowlarr HTTP (redirects to HTTPS)
+# =============================================================================
+# Prowlarr Ingress Routes - External Access to Indexer Manager
+# =============================================================================
+# 
+# These IngressRoutes provide external web access to the Prowlarr indexer
+# management application through Traefik. They implement:
+# - Automatic HTTPS redirects for security
+# - SSL certificate management via Let's Encrypt
+# - Security headers for enhanced protection
+# - Multiple domain support (IP and custom domains)
+# 
+# Prowlarr acts as the central hub for managing torrent and usenet indexers
+# across all *arr applications. External access enables:
+# 1. Remote configuration and management of indexers
+# 2. Monitoring indexer health and performance
+# 3. Testing and troubleshooting search providers
+# 4. API access for automation and integration
+# 
+# Documentation:
+# - Traefik IngressRoute: https://doc.traefik.io/traefik/routing/providers/kubernetes-crd/
+# - Prowlarr: https://wiki.servarr.com/prowlarr
+# - Indexer Management: https://wiki.servarr.com/prowlarr/indexers
+# =============================================================================
+# =============================================================================
+# Prowlarr HTTP Route - Automatic HTTPS Redirect
+# =============================================================================
+# This route handles all HTTP (port 80) traffic to Prowlarr and redirects
+# it to HTTPS for secure communication. This protects indexer configurations
+# and API keys from being transmitted in plain text.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: prowlarr-http
-  namespace: media
+  name: prowlarr-http # Unique name for this ingress route
+  namespace: media # Must match the namespace of target service
 spec:
+  # Entry points define which Traefik ports this route listens on
   entryPoints:
-    - web
+    - web # HTTP entry point (port 80)
+  # Routes define the matching rules and actions
   routes:
+    # Route for custom domain access (replace <YOUR_DOMAIN> with actual domain)
     - match: Host(`prowlarr.<YOUR_DOMAIN>.sslip.io`)
-      kind: Rule
+      kind: Rule # Standard routing rule
       middlewares:
-        - name: redirect-https
+        - name: redirect-https # Apply HTTPS redirect middleware
       services:
-        - name: prowlarr
-          port: 9696
+        - name: prowlarr # Target service name
+          port: 9696 # Service port (Prowlarr's default)
+    # Route for IP-based access (useful for local/development access)
     - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
-        - name: redirect-https
+        - name: redirect-https # Apply HTTPS redirect middleware
       services:
         - name: prowlarr
           port: 9696
 ---
-# Prowlarr HTTPS
+# =============================================================================
+# Prowlarr HTTPS Route - Secure Indexer Management Access
+# =============================================================================
+# This route handles all HTTPS (port 443) traffic to Prowlarr, providing
+# secure access to the indexer management interface with automatic SSL certificates.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: prowlarr-https
-  namespace: media
+  name: prowlarr-https # Unique name for this ingress route
+  namespace: media # Must match the namespace of target service
 spec:
+  # Entry points define which Traefik ports this route listens on
   entryPoints:
-    - websecure
+    - websecure # HTTPS entry point (port 443)
+  # Routes define the matching rules and actions
   routes:
+    # Route for custom domain secure access
     - match: Host(`prowlarr.<YOUR_DOMAIN>.sslip.io`)
-      kind: Rule
+      kind: Rule # Standard routing rule
       middlewares:
-        - name: security-headers
+        - name: security-headers # Apply security headers middleware
       services:
-        - name: prowlarr
-          port: 9696
+        - name: prowlarr # Target service name
+          port: 9696 # Service port for Prowlarr
+    # Route for IP-based secure access
     - match: Host(`prowlarr.<YOUR_PUBLIC_IP>.sslip.io`)
       kind: Rule
       middlewares:
-        - name: security-headers
+        - name: security-headers # Apply security headers middleware
       services:
         - name: prowlarr
           port: 9696
+  # TLS configuration for automatic SSL certificate management
   tls:
-    certResolver: letsencrypt
+    certResolver: letsencrypt # Use Let's Encrypt for automatic certificates

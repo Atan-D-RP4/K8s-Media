@@ -1,12 +1,36 @@
-apiVersion: v1
-kind: Namespace
+# =============================================================================
+# Media Namespace - Isolated Environment for Media Applications
+# =============================================================================
+# 
+# This namespace provides an isolated environment for all media-related
+# applications including Lidarr, Prowlarr, Navidrome, Slskd, and AdGuard.
+# 
+# Namespaces in Kubernetes provide:
+# - Resource isolation and organization
+# - Security boundaries between different application groups
+# - Separate network policies and access controls
+# - Independent resource quotas and limits
+# - Simplified management and monitoring
+#
+# This namespace is configured with strict Pod Security Standards to ensure
+# all applications run with enhanced security controls.
+#
+# Documentation:
+# - Kubernetes Namespaces: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+# - Pod Security Standards: https://kubernetes.io/docs/concepts/security/pod-security-standards/
+# - Network Policies: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+# =============================================================================
+apiVersion: v1 # API version for Namespace resources
+kind: Namespace # Resource type - provides isolated environment
 metadata:
-  name: media
+  name: media # Unique name for this namespace
   labels:
-    # Namespace identification for network policies
+    # Namespace identification label for network policies
+    # This label is used by NetworkPolicy resources to identify this namespace
     name: media
-    # Pod Security Standards enforcement
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-
+    # Pod Security Standards (PSS) enforcement labels
+    # These labels automatically enforce security policies on all pods in this namespace
+    # See: https://kubernetes.io/docs/concepts/security/pod-security-standards/
+    pod-security.kubernetes.io/enforce: restricted # Enforce the most restrictive security profile
+    pod-security.kubernetes.io/audit: restricted # Audit violations of the restricted profile
+    pod-security.kubernetes.io/warn: restricted # Warn about violations of the restricted profile

@@ -1,26 +1,64 @@
-# AdGuard Service Manifest for Kubernetes
-apiVersion: v1
-kind: Service
+# =============================================================================
+# AdGuard Home Service - Network Access to DNS Ad Blocker
+# =============================================================================
+
+# This Service provides network access to the AdGuard Home DNS server by:
+# - Exposing the web interface for administration and configuration
+# - Providing DNS service endpoints for network-wide ad blocking
+# - Enabling external access for DNS queries from any device
+# - Supporting both TCP and UDP DNS protocols
+
+# AdGuard Home functions as a network-wide DNS server that:
+# 1. Blocks ads and trackers at the DNS level
+# 2. Provides detailed query logs and statistics
+# 3. Supports DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT)
+# 4. Offers parental controls and safe browsing features
+
+# This service uses LoadBalancer type to ensure the DNS service is easily
+# accessible from external networks. DNS services typically need to be
+# reachable from multiple devices across different network segments.
+
+# The DNS ports (53) are privileged ports that require special capabilities
+# in the container security context (NET_BIND_SERVICE).
+
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - LoadBalancer Services: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
+# - DNS Protocol: https://en.wikipedia.org/wiki/Domain_Name_System
+# - AdGuard Home: https://github.com/AdguardTeam/AdGuardHome/wiki
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: adguard
-  namespace: media
+  name: adguard # Service name - becomes DNS name within cluster
+  namespace: media # Must match the namespace of target pods
 spec:
-  type: LoadBalancer  # Changed to LoadBalancer for better DNS access
+  # Service type - LoadBalancer provides external IP for DNS service
+  # LoadBalancer is ideal for DNS services that need to be accessible
+  # from multiple networks and devices
+  type: LoadBalancer
+  # Selector - determines which pods this service routes traffic to
   selector:
-    app: adguard
+    app: adguard # Routes to pods with label "app: adguard"
+  # Port configuration - web interface and DNS service
   ports:
-    - name: web
-      protocol: TCP
-      port: 3000 # Admin Web Interface
-      targetPort: 3000 # Container Port
+    # Web administration interface
+    - name: web # Port name for identification
+      protocol: TCP # TCP protocol for HTTP traffic
+      port: 3000 # Port exposed by the service
+      targetPort: 3000 # Port on the pod/container (AdGuard's default web port)
       nodePort: 32000 # Fixed NodePort
+    # DNS service over TCP
+    # Some DNS queries use TCP, especially for large responses or zone transfers
     - name: dns-tcp
-      protocol: TCP
-      port: 53 # DNS TCP Port
-      targetPort: 53 # Container Port
+      protocol: TCP # TCP protocol for DNS
+      port: 53 # Standard DNS port
+      targetPort: 53 # Container port for DNS TCP
       nodePort: 32053 # Fixed NodePort
+    # DNS service over UDP
+    # Most DNS queries use UDP for better performance
     - name: dns-udp
-      protocol: UDP
-      port: 53 # DNS UDP Port
-      targetPort: 53 # Container Port
+      protocol: UDP # UDP protocol for DNS (most common)
+      port: 53 # Standard DNS port
+      targetPort: 53 # Container port for DNS UDP
       nodePort: 32054 # Fixed NodePort

@@ -1,14 +1,56 @@
-# Storage for Let's Encrypt certificates
+# =============================================================================
+# Traefik Storage Configuration - SSL Certificates and Configuration Data
+# =============================================================================
+# 
+# This file configures persistent storage for Traefik, the ingress controller
+# that manages external access to all media applications. The storage is used for:
+# - Let's Encrypt SSL certificates (automatic HTTPS)
+# - ACME challenge data for certificate validation
+# - Traefik configuration cache and state
+# - Certificate renewal and management data
+# 
+# Persistent storage is critical for Traefik because:
+# 1. SSL certificates must persist across pod restarts
+# 2. Let's Encrypt has rate limits that make certificate loss problematic
+# 3. Certificate renewal state needs to be maintained
+# 4. Configuration cache improves startup performance
+# 
+# This configuration uses dynamic provisioning with the local-path storage
+# class, which automatically creates storage as needed. Since Traefik typically
+# runs as a single instance, ReadWriteOnce access is sufficient.
+# 
+# Documentation:
+# - Persistent Volume Claims: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims
+# - Let's Encrypt: https://letsencrypt.org/docs/
+# - Traefik ACME: https://doc.traefik.io/traefik/https/acme/
+# =============================================================================
+# =============================================================================
+# Traefik Data Persistent Volume Claim - Certificate and Configuration Storage
+# =============================================================================
+# This PersistentVolumeClaim provides storage for Traefik's operational data,
+# primarily SSL certificates from Let's Encrypt. The storage ensures that
+# certificates persist across pod restarts and cluster maintenance.
+# 
+# Key considerations:
+# - Small storage size (1Gi) sufficient for certificates and config
+# - ReadWriteOnce access since Traefik runs as single instance
+# - Dynamic provisioning for automatic storage allocation
+# - Critical for maintaining HTTPS functionality
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: traefik-data-pvc
-  namespace: traefik
+  name: traefik-data-pvc # PVC name referenced by Traefik deployment
+  namespace: traefik # Must be in traefik namespace
 spec:
+  # Access mode configuration
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteOnce # Single pod read/write access
+    # Sufficient since Traefik typically runs as single instance
+  # Storage resource requirements
   resources:
     requests:
-      storage: 1Gi
-  storageClassName: local-path
-
+      storage: 1Gi # 1 gigabyte storage for certificates and configuration
+      # Small size sufficient for SSL certificates and ACME data
+  # Storage class for dynamic provisioning
+  storageClassName: local-path # Uses local-path provisioner for automatic storage creation
+  # Storage will be automatically allocated on the node

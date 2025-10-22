@@ -1,81 +1,120 @@
-# AdGuard Deployment manifest for Kubernetes
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# AdGuard Home Deployment - Network-wide Ad Blocker and DNS Server
+# =============================================================================
+# 
+# AdGuard Home is a network-wide software for blocking ads and tracking that:
+# - Acts as a DNS server with ad/tracker blocking capabilities
+# - Provides detailed DNS query logs and statistics
+# - Supports DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT)
+# - Offers parental controls and safe browsing features
+# - Can replace your router's DNS server for network-wide protection
+#
+# This deployment runs AdGuard Home as a secure DNS service that can be used
+# by all devices on your network for ad blocking and privacy protection.
+#
+# Documentation:
+# - AdGuard Home: https://github.com/AdguardTeam/AdGuardHome/wiki
+# - DNS in Kubernetes: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+# - Capabilities: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+# =============================================================================
+apiVersion: apps/v1 # API version for Deployment resources
+kind: Deployment # Resource type - manages a set of identical pods
 metadata:
-  name: adguard
-  namespace: media
+  name: adguard # Unique name for this deployment
+  namespace: media # Namespace for media-related applications
 spec:
-  replicas: 1
+  # Replica configuration
+  replicas: 1 # Single instance (DNS services typically don't cluster easily)
+  # Selector defines which pods this deployment manages
   selector:
     matchLabels:
-      app: adguard
+      app: adguard # Must match the pod template labels below
+  # Template defines the pod specification
   template:
     metadata:
       labels:
-        app: adguard
+        app: adguard # Labels for pod identification and service selection
     spec:
-      # Pod-level security context
+      # Pod-level security context - applies to all containers in the pod
+      # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true # Prevents running as root user (UID 0)
+        runAsUser: 1000 # Run as specific non-root user
+        runAsGroup: 1000 # Run as specific non-root group
+        fsGroup: 1000 # File system group for volume permissions
+        seccompProfile: # Secure computing mode profile
+          type: RuntimeDefault # Use container runtime's default seccomp profile
       containers:
         - name: adguard
+          # Container image - official AdGuard Home image
+          # Regularly updated by the AdGuard team with security patches
           image: adguard/adguardhome:latest
+          # Network ports the container exposes
           ports:
-            - containerPort: 3000
-            - containerPort: 53
+            - containerPort: 3000 # Web interface for administration
+            - containerPort: 53 # DNS service port (UDP)
               protocol: UDP
-            - containerPort: 53
-              protocol: TCP
-          # Container-level security context
+            - containerPort: 53 # DNS service port (TCP)
+              protocol: TCP # Some DNS queries use TCP
+          # Container-level security context - additional security for this specific container
           securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            readOnlyRootFilesystem: false  # AdGuard needs to write to work/config dirs
-            capabilities:
+            allowPrivilegeEscalation: false # Prevents gaining additional privileges
+            privileged: false # Disables privileged mode
+            readOnlyRootFilesystem: false # Allow writes (AdGuard needs to write logs/config)
+            capabilities: # Linux capabilities management
               drop:
-                - ALL
+                - ALL # Drop all capabilities first
               add:
-                - NET_BIND_SERVICE  # Required for binding to port 53
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+                - NET_BIND_SERVICE # Required to bind to privileged port 53
+                # See: https://man7.org/linux/man-pages/man7/capabilities.7.html
+            runAsNonRoot: true # Enforce non-root execution
+            runAsUser: 1000 # Specific user ID
+            runAsGroup: 1000 # Specific group ID
+          # Volume mounts - how storage is attached to the container
+          # AdGuard Home uses two separate directories for data organization
           volumeMounts:
-            # Mount points for AdGuard Home data and configuration
+            # Working directory - contains logs, statistics, and runtime data
             - name: adguard-data
-              mountPath: /opt/adguardhome/work
+              mountPath: /opt/adguardhome/work # AdGuard's working directory
+            # Configuration directory - contains settings and filter lists
             - name: adguard-config
-              mountPath: /opt/adguardhome/config
-          # Resource requests and limits
+              mountPath: /opt/adguardhome/config # AdGuard's configuration directory
+          # Resource limits and requests - controls CPU and memory usage
+          # DNS services need consistent performance but are generally lightweight
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "50m"
-            limits:
-              memory: "512Mi"
-              cpu: "200m"
-          # Probes for health checks
+            requests: # Minimum resources guaranteed
+              memory: "128Mi" # 128 megabytes of RAM
+              cpu: "50m" # 0.05 CPU cores (50 millicores)
+            limits: # Maximum resources allowed
+              memory: "512Mi" # 512 megabytes of RAM maximum
+              cpu: "200m" # 0.2 CPU cores maximum
+          # Health checks - Kubernetes uses these to monitor application health
+          # See: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+
+          # Liveness probe - checks if the application is running
+          # If this fails, Kubernetes will restart the container
           livenessProbe:
             httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          # Probe to check if the application is ready to serve traffic
+              path: / # Health check endpoint
+              port: 3000 # Web interface port
+            initialDelaySeconds: 30 # Wait 30 seconds before first check
+            periodSeconds: 10 # Check every 10 seconds
+          # Readiness probe - checks if the application is ready to serve traffic
+          # If this fails, Kubernetes will stop sending traffic to this pod
           readinessProbe:
             httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+              path: / # Health check endpoint
+              port: 3000 # Web interface port
+            initialDelaySeconds: 5 # Wait 5 seconds before first check
+            periodSeconds: 5 # Check every 5 seconds
+      # Volumes - storage that can be mounted into containers
+      # AdGuard uses separate volumes for data and configuration for better organization
       volumes:
+        # Persistent storage for AdGuard working data (logs, statistics)
         - name: adguard-data
-          persistentVolumeClaim:
-            claimName: adguard-data-pvc
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: adguard-data-pvc # Must match PVC name in storage manifests
+        # Persistent storage for AdGuard configuration (settings, filters)
         - name: adguard-config
-          persistentVolumeClaim:
-            claimName: adguard-config-pvc
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: adguard-config-pvc # Must match PVC name in storage manifests

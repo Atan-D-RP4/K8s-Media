@@ -26,4 +26,3 @@ data:
       <InstanceName>Lidarr</InstanceName>
       <UpdateMechanism>Docker</UpdateMechanism>
     </Config>
-

@@ -1,72 +1,103 @@
-# Prowlarr Deployment manifest for Kubernetes
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# Prowlarr Deployment - Indexer Manager for *arr Applications
+# =============================================================================
+# 
+# Prowlarr is a centralized indexer manager that:
+# - Manages torrent and usenet indexers (search sites)
+# - Provides a unified API for other *arr applications
+# - Synchronizes indexer configurations across Lidarr, Sonarr, Radarr, etc.
+# - Tests and monitors indexer health and performance
+#
+# This acts as the central hub for all search providers, eliminating the need
+# to configure indexers separately in each *arr application.
+#
+# Documentation:
+# - Prowlarr: https://wiki.servarr.com/prowlarr
+# - Kubernetes Deployments: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+# - LinuxServer.io Images: https://docs.linuxserver.io/
+# =============================================================================
+apiVersion: apps/v1 # API version for Deployment resources
+kind: Deployment # Resource type - manages a set of identical pods
 metadata:
-  name: prowlarr
-  namespace: media
+  name: prowlarr # Unique name for this deployment
+  namespace: media # Namespace for media-related applications
 spec:
-  replicas: 1
+  # Replica configuration
+  replicas: 1 # Single instance (Prowlarr doesn't support clustering)
+  # Selector defines which pods this deployment manages
   selector:
     matchLabels:
-      app: prowlarr
+      app: prowlarr # Must match the pod template labels below
+  # Template defines the pod specification
   template:
     metadata:
       labels:
-        app: prowlarr
+        app: prowlarr # Labels for pod identification and service selection
     spec:
-      # Pod-level security context
+      # Pod-level security context - applies to all containers in the pod
+      # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true # Prevents running as root user (UID 0)
+        runAsUser: 1000 # Run as specific non-root user
+        runAsGroup: 1000 # Run as specific non-root group
+        fsGroup: 1000 # File system group for volume permissions
+        seccompProfile: # Secure computing mode profile
+          type: RuntimeDefault # Use container runtime's default seccomp profile
       containers:
         - name: prowlarr
+          # Container image - using LinuxServer.io's well-maintained Prowlarr image
+          # LinuxServer.io provides regularly updated, secure container images
           image: linuxserver/prowlarr:latest
+          # Network ports the container exposes
           ports:
-            - containerPort: 9696
-          # Container-level security context
+            - containerPort: 9696 # Prowlarr web interface and API port
+          # Container-level security context - additional security for this specific container
           securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            readOnlyRootFilesystem: false  # Prowlarr needs to write to /config
-            capabilities:
+            allowPrivilegeEscalation: false # Prevents gaining additional privileges
+            privileged: false # Disables privileged mode
+            readOnlyRootFilesystem: false # Allow writes (Prowlarr needs to write config/cache)
+            capabilities: # Linux capabilities management
               drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+                - ALL # Drop all capabilities for minimal privileges
+            runAsNonRoot: true # Enforce non-root execution
+            runAsUser: 1000 # Specific user ID
+            runAsGroup: 1000 # Specific group ID
+          # Environment variables for container configuration
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
+            - name: PUID # Process User ID - matches runAsUser above
+              value: "1000" # Ensures file permissions work correctly
+            - name: PGID # Process Group ID - matches runAsGroup above
+              value: "1000" # Ensures file permissions work correctly
+          # Volume mounts - how storage is attached to the container
           volumeMounts:
-            # Mount config directory
-            - name: media-storage
-              mountPath: /config
-              subPath: prowlarr/config
-            # Overlay config.xml from ConfigMap
+            # Prowlarr configuration and database storage
+            - name: media-storage # References volume defined below
+              mountPath: /config # Where to mount inside container
+              subPath: prowlarr/config # Subdirectory within the volume
+            # Configuration overlay - provides initial Prowlarr settings
+            # This mounts only the config file, allowing Prowlarr to create other files
             - name: prowlarr-config
-              mountPath: /config/config.xml
-              subPath: config.xml
+              mountPath: /config/config.xml # Specific file mount
+              subPath: config.xml # File from ConfigMap
+          # Resource limits and requests - controls CPU and memory usage
+          # Prowlarr is lightweight as it mainly manages configurations
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "50m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
+            requests: # Minimum resources guaranteed
+              memory: "128Mi" # 128 megabytes of RAM
+              cpu: "50m" # 0.05 CPU cores (50 millicores)
+            limits: # Maximum resources allowed
+              memory: "512Mi" # 512 megabytes of RAM maximum
+              cpu: "500m" # 0.5 CPU cores maximum
+      # Volumes - storage that can be mounted into containers
       volumes:
+        # Persistent storage for configuration
         - name: media-storage
-          persistentVolumeClaim:
-            claimName: media-pvc-auto
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: media-pvc-auto # Must match PVC name in storage manifests
+        # Configuration data from ConfigMap
         - name: prowlarr-config
-          configMap:
-            name: prowlarr-config
-            items:
-              - key: config.xml
-                path: config.xml
-
+          configMap: # Configuration stored in Kubernetes
+            name: prowlarr-config # Must match ConfigMap name
+            items: # Specific files to mount
+              - key: config.xml # Key in ConfigMap
+                path: config.xml # Filename in container

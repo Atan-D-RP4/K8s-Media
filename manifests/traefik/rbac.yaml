@@ -1,50 +1,126 @@
-# ServiceAccount: Identity for Traefik pod
+# =============================================================================
+# Traefik RBAC Configuration - Secure Kubernetes API Access
+# =============================================================================
+# 
+# This file configures Role-Based Access Control (RBAC) for Traefik, implementing
+# the principle of least privilege by granting only the minimum permissions
+# required for Traefik to function as an ingress controller.
+# 
+# Traefik needs to access the Kubernetes API to:
+# 1. Discover services and endpoints for traffic routing
+# 2. Watch for changes in ingress configurations
+# 3. Read SSL certificates stored in secrets
+# 4. Monitor custom resources (IngressRoutes, Middlewares)
+# 5. Automatically configure routing based on Kubernetes resources
+# 
+# The RBAC configuration consists of three components:
+# - ServiceAccount: Provides an identity for Traefik pods
+# - ClusterRole: Defines the permissions Traefik needs
+# - ClusterRoleBinding: Grants the permissions to the ServiceAccount
+# 
+# Security considerations:
+# - Read-only access (no write/modify permissions)
+# - Cluster-wide access required for cross-namespace routing
+# - No access to sensitive resources like pods or nodes
+# - Minimal permissions following security best practices
+# 
+# Documentation:
+# - Kubernetes RBAC: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+# - Service Accounts: https://kubernetes.io/docs/concepts/security/service-accounts/
+# - Traefik RBAC: https://doc.traefik.io/traefik/reference/dynamic-configuration/kubernetes-crd/
+# =============================================================================
+# =============================================================================
+# Traefik Service Account - Pod Identity for API Access
+# =============================================================================
+# A ServiceAccount provides an identity for Traefik pods to authenticate
+# with the Kubernetes API server. This is required for Traefik to access
+# cluster resources for service discovery and configuration.
+# 
+# The ServiceAccount is automatically mounted into Traefik pods, providing
+# the necessary credentials for API authentication.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: traefik
-  name: traefik
+  namespace: traefik # Must be in the same namespace as Traefik deployment
+  name: traefik # ServiceAccount name referenced in deployment
 ---
-# ClusterRole: Permissions Traefik needs to watch Kubernetes resources
+# =============================================================================
+# Traefik Cluster Role - Minimum Required Permissions
+# =============================================================================
+# This ClusterRole defines the exact permissions Traefik needs to function
+# as an ingress controller. It follows the principle of least privilege,
+# granting only read access to the resources Traefik needs to monitor.
+# 
+# ClusterRole is used instead of Role because Traefik needs to access
+# resources across multiple namespaces for cross-namespace routing.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: traefik
+  name: traefik # ClusterRole name referenced in binding
 rules:
-  # Read services and endpoints to route traffic
-  - apiGroups: [""]
-    resources: ["services", "endpoints", "secrets"]
-    verbs: ["get", "list", "watch"]
-  # Read ingress resources
+  # ==========================================================================
+  # Core Kubernetes Resources - Service Discovery and Routing
+  # ==========================================================================
+  # Traefik needs to read these resources to discover backend services
+  # and configure traffic routing automatically.
+  - apiGroups: [""] # Core API group (v1)
+    resources:
+      - "services" # Service definitions for backend discovery
+      - "endpoints" # Endpoint information for load balancing
+      - "secrets" # SSL certificates and authentication data
+    verbs: ["get", "list", "watch"] # Read-only access with change monitoring
+  # ==========================================================================
+  # Standard Ingress Resources - Traditional Kubernetes Ingress
+  # ==========================================================================
+  # Support for standard Kubernetes Ingress resources in addition to
+  # Traefik's custom IngressRoute resources.
   - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses", "ingressclasses"]
-    verbs: ["get", "list", "watch"]
-  # Read Traefik's custom resources (IngressRoute, Middleware, etc.)
+    resources:
+      - "ingresses" # Standard Kubernetes Ingress resources
+      - "ingressclasses" # Ingress class definitions
+    verbs: ["get", "list", "watch"] # Read-only access with change monitoring
+  # ==========================================================================
+  # Traefik Custom Resources - Advanced Routing Configuration
+  # ==========================================================================
+  # Traefik's custom resource definitions provide advanced routing features
+  # beyond standard Kubernetes Ingress capabilities.
   - apiGroups: ["traefik.io"]
     resources:
-      - "ingressroutes"
-      - "ingressroutetcps"
-      - "ingressrouteudps"
-      - "middlewares"
-      - "middlewaretcps"
-      - "tlsoptions"
-      - "tlsstores"
-      - "traefikservices"
-      - "serverstransports"
-      - "serverstransporttcps"
-    verbs: ["get", "list", "watch"]
+      # HTTP routing resources
+      - "ingressroutes" # HTTP/HTTPS routing rules
+      - "middlewares" # Request/response processing components
+      - "tlsoptions" # SSL/TLS configuration options
+      - "tlsstores" # SSL certificate storage configuration
+      - "traefikservices" # Advanced service definitions
+      - "serverstransports" # Backend connection configuration
+      # TCP routing resources
+      - "ingressroutetcps" # TCP routing rules
+      - "middlewaretcps" # TCP middleware components
+      - "serverstransporttcps" # TCP backend connection configuration
+      # UDP routing resources
+      - "ingressrouteudps" # UDP routing rules
+    verbs: ["get", "list", "watch"] # Read-only access with change monitoring
 ---
-# ClusterRoleBinding: Grants permissions to ServiceAccount
+# =============================================================================
+# Traefik Cluster Role Binding - Permission Grant
+# =============================================================================
+# This ClusterRoleBinding grants the permissions defined in the ClusterRole
+# to the Traefik ServiceAccount. It establishes the connection between the
+# identity (ServiceAccount) and the permissions (ClusterRole).
+# 
+# ClusterRoleBinding is used instead of RoleBinding because the ClusterRole
+# contains cluster-wide permissions that need to be granted globally.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: traefik
+  name: traefik # Unique name for this binding
 roleRef:
+  # Reference to the ClusterRole containing the permissions
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: traefik
+  name: traefik # Must match the ClusterRole name above
 subjects:
+  # Reference to the ServiceAccount that receives the permissions
   - kind: ServiceAccount
-    name: traefik
-    namespace: traefik
-
+    name: traefik # Must match the ServiceAccount name above
+    namespace: traefik # Must match the ServiceAccount namespace

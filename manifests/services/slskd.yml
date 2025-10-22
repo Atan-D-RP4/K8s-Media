@@ -1,23 +1,55 @@
-# Slskd Service Manifest for Kubernetes
-apiVersion: v1
-kind: Service
+# =============================================================================
+# Slskd Service - Network Access to Soulseek P2P Client
+# =============================================================================
+# 
+# This Service provides network access to the Slskd application by:
+# - Exposing the web interface for Soulseek management and downloads
+# - Providing peer-to-peer connection endpoints for the Soulseek network
+# - Enabling external access for remote management
+# - Facilitating P2P file sharing with other Soulseek users
+# 
+# Slskd requires multiple types of network access:
+# 1. Web interface (HTTP/HTTPS) for user interaction and management
+# 2. P2P port for connecting to other Soulseek users for file sharing
+# 3. External access for remote management and mobile apps
+# 
+# The P2P port (50300) is critical for Soulseek functionality as it allows
+# other users to connect directly to your client for file transfers. This
+# port must be accessible from the internet for optimal P2P performance.
+# 
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - Soulseek Protocol: https://www.slsknet.org/news/node/1
+# - P2P Networking: https://en.wikipedia.org/wiki/Peer-to-peer
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: slskd
-  namespace: media
+  name: slskd # Service name - becomes DNS name within cluster
+  namespace: media # Must match the namespace of target pods
 spec:
+  # Service type - NodePort allows external access
+  # Essential for P2P functionality and remote management
   type: NodePort
+  # Selector - determines which pods this service routes traffic to
   selector:
-    app: slskd
+    app: slskd # Routes to pods with label "app: slskd"
+  # Port configuration - web interface and P2P connectivity
   ports:
-    - name: http
-      port: 5030
-      targetPort: 5030
-      nodePort: 30030
+    # Primary HTTP interface for Slskd web UI
+    - name: http # Port name for identification
+      port: 5030 # Port exposed by the service (cluster-internal)
+      targetPort: 5030 # Port on the pod/container (Slskd's default HTTP)
+      nodePort: 30030 # External port on each cluster node
+    # HTTPS interface for secure web access
     - name: https
-      port: 5031
-      targetPort: 5031
-      nodePort: 30031
+      port: 5031 # Service port for HTTPS
+      targetPort: 5031 # Container port for HTTPS (if SSL configured)
+      nodePort: 30031 # External HTTPS access port
+    # Soulseek peer-to-peer connection port
+    # This port is used for direct connections with other Soulseek users
+    # for file browsing, searching, and downloading
     - name: slskd-peer
-      port: 50300
-      targetPort: 50300
-      nodePort: 30300 # External port for peer connections
+      port: 50300 # Service port for P2P connections
+      targetPort: 50300 # Container port for P2P (Soulseek standard)
+      nodePort: 30300 # External P2P port - must be accessible from internet

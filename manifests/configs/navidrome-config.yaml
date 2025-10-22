@@ -27,4 +27,3 @@ data:
     # Logging settings
     LogLevel = "info" # Log verbosity level ("trace", "debug", "info", "warn", "error")
     LogFile = "/config/navidrome.log" # Path to the log file
-

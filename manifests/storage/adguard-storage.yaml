@@ -1,77 +1,171 @@
-# AdGuard Storage - Missing PVCs
----
-# PersistentVolume for AdGuard data
+# =============================================================================
+# AdGuard Home Storage Configuration - DNS Service Data and Configuration
+# =============================================================================
+# 
+# This file configures persistent storage for AdGuard Home, the network-wide
+# DNS ad blocker. AdGuard requires separate storage volumes for different
+# types of data to maintain proper organization and backup strategies:
+# 
+# 1. Data Volume (5Gi):
+#    - DNS query logs and statistics
+#    - Blocked/allowed domain databases
+#    - Query history and analytics data
+#    - Runtime cache and temporary files
+# 
+# 2. Configuration Volume (1Gi):
+#    - AdGuard settings and preferences
+#    - Filter lists and custom rules
+#    - User accounts and authentication
+#    - Upstream DNS server configurations
+# 
+# Separating data and configuration provides several benefits:
+# - Independent backup and restore strategies
+# - Different retention policies for logs vs settings
+# - Easier configuration management and migration
+# - Better security isolation between operational data and settings
+# 
+# This configuration uses hostPath storage with explicit PV/PVC binding
+# to ensure predictable storage allocation and data persistence.
+# 
+# Documentation:
+# - AdGuard Home: https://github.com/AdguardTeam/AdGuardHome/wiki
+# - Persistent Volumes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+# - DNS Filtering: https://adguard.com/en/blog/how-ad-blocking-is-done.html
+# =============================================================================
+# =============================================================================
+# AdGuard Data Persistent Volume - Query Logs and Statistics Storage
+# =============================================================================
+# This PersistentVolume provides storage for AdGuard's operational data,
+# including DNS query logs, statistics, and runtime databases. This data
+# grows over time and requires larger storage capacity.
+# 
+# The data volume contains:
+# - DNS query logs (can be large depending on network activity)
+# - Blocked domain statistics and analytics
+# - Query response cache for performance
+# - Historical data for reporting and analysis
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: adguard-data-pv
+  name: adguard-data-pv # Unique name for this persistent volume
   labels:
-    type: local
-    app: adguard-data
+    type: local # Indicates this is local (host-based) storage
+    app: adguard-data # Application and purpose label
 spec:
+  # Storage capacity and access configuration
   capacity:
-    storage: 5Gi
+    storage: 5Gi # 5 gigabytes for DNS logs and operational data
+    # Adjust based on network size and log retention needs
+  # Access modes define how the volume can be mounted
   accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
+    - ReadWriteOnce # Single pod read/write access
+    # AdGuard runs as single instance
+  # Reclaim policy determines what happens when PVC is deleted
+  persistentVolumeReclaimPolicy: Retain # Preserve DNS logs when PVC is removed
+  # Important for compliance and analysis
+
+  # Storage class for binding and provisioning
   storageClassName: local-path
+  # Host path configuration - where data files are actually stored
   hostPath:
-    path: /home/atan/Media/adguard/data
-    type: DirectoryOrCreate
+    path: /home/atan/Media/adguard/data # TODO: Update to your actual path
+    # Directory for AdGuard operational data
+    type: DirectoryOrCreate # Create directory if it doesn't exist
 ---
-# PersistentVolume for AdGuard config
+# =============================================================================
+# AdGuard Configuration Persistent Volume - Settings and Filter Lists
+# =============================================================================
+# This PersistentVolume provides storage for AdGuard's configuration data,
+# including settings, filter lists, and user preferences. This data is
+# relatively small but critical for service functionality.
+# 
+# The configuration volume contains:
+# - AdGuard settings and preferences
+# - Custom filter lists and blocking rules
+# - User accounts and authentication data
+# - Upstream DNS server configurations
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: adguard-config-pv
+  name: adguard-config-pv # Unique name for this persistent volume
   labels:
-    type: local
-    app: adguard-config
+    type: local # Indicates this is local (host-based) storage
+    app: adguard-config # Application and purpose label
 spec:
+  # Storage capacity and access configuration
   capacity:
-    storage: 1Gi
+    storage: 1Gi # 1 gigabyte for configuration files
+    # Small size sufficient for settings and filter lists
+  # Access modes define how the volume can be mounted
   accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
+    - ReadWriteOnce # Single pod read/write access
+    # AdGuard runs as single instance
+  # Reclaim policy determines what happens when PVC is deleted
+  persistentVolumeReclaimPolicy: Retain # Preserve configuration when PVC is removed
+  # Critical for maintaining DNS settings
+
+  # Storage class for binding and provisioning
   storageClassName: local-path
+  # Host path configuration - where config files are actually stored
   hostPath:
-    path: /home/atan/Media/adguard/config
-    type: DirectoryOrCreate
+    path: /home/atan/Media/adguard/config # TODO: Update to your actual path
+    # Directory for AdGuard configuration
+    type: DirectoryOrCreate # Create directory if it doesn't exist
 ---
-# PersistentVolumeClaim for AdGuard data
+# =============================================================================
+# AdGuard Data Persistent Volume Claim - Operational Data Storage Request
+# =============================================================================
+# This PersistentVolumeClaim requests storage for AdGuard's operational data
+# from the data PersistentVolume above. It provides the storage interface
+# that the AdGuard deployment uses to access DNS logs and statistics.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: adguard-data-pvc
-  namespace: media
+  name: adguard-data-pvc # PVC name referenced by AdGuard deployment
+  namespace: media # Must be in media namespace for application access
 spec:
+  # Access modes must match or be subset of PV access modes
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteOnce # Single pod read/write access
+  # Storage class must match the PV storage class
   storageClassName: local-path
-  volumeName: adguard-data-pv
+  # Explicit binding to specific PV (prevents binding to wrong storage)
+  volumeName: adguard-data-pv # Must match PV name above
+  # Storage resource requirements
   resources:
     requests:
-      storage: 5Gi
+      storage: 5Gi # Amount of storage requested (must not exceed PV capacity)
+  # Selector ensures binding to correct PV using labels
   selector:
     matchLabels:
-      type: local
-      app: adguard-data
+      type: local # Must match PV labels
+      app: adguard-data # Must match PV labels
 ---
-# PersistentVolumeClaim for AdGuard config
+# =============================================================================
+# AdGuard Configuration Persistent Volume Claim - Settings Storage Request
+# =============================================================================
+# This PersistentVolumeClaim requests storage for AdGuard's configuration data
+# from the configuration PersistentVolume above. It provides the storage
+# interface that the AdGuard deployment uses to access settings and filters.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: adguard-config-pvc
-  namespace: media
+  name: adguard-config-pvc # PVC name referenced by AdGuard deployment
+  namespace: media # Must be in media namespace for application access
 spec:
+  # Access modes must match or be subset of PV access modes
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteOnce # Single pod read/write access
+  # Storage class must match the PV storage class
   storageClassName: local-path
-  volumeName: adguard-config-pv
+  # Explicit binding to specific PV (prevents binding to wrong storage)
+  volumeName: adguard-config-pv # Must match PV name above
+  # Storage resource requirements
   resources:
     requests:
-      storage: 1Gi
+      storage: 1Gi # Amount of storage requested (must not exceed PV capacity)
+  # Selector ensures binding to correct PV using labels
   selector:
     matchLabels:
-      type: local
-      app: adguard-config
+      type: local # Must match PV labels
+      app: adguard-config # Must match PV labels

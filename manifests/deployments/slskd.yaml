@@ -1,82 +1,114 @@
-# Slskd Deployment manifest for Kubernetes
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# Slskd Deployment - Soulseek Daemon for Music Sharing
+# =============================================================================
+# 
+# Slskd is a modern, web-based Soulseek client that:
+# - Connects to the Soulseek peer-to-peer network for music sharing
+# - Provides a web interface for searching and downloading music
+# - Shares your music library with other Soulseek users
+# - Runs as a daemon (background service) without requiring a desktop
+# - Supports automatic organization and tagging of downloaded files
+#
+# Soulseek is a specialized P2P network focused on music sharing, popular
+# among music enthusiasts for finding rare and high-quality recordings.
+#
+# Documentation:
+# - Slskd: https://github.com/slskd/slskd
+# - Soulseek Network: https://www.slsknet.org/
+# - P2P Networking: https://en.wikipedia.org/wiki/Peer-to-peer
+# =============================================================================
+apiVersion: apps/v1 # API version for Deployment resources
+kind: Deployment # Resource type - manages a set of identical pods
 metadata:
-  name: slskd
-  namespace: media
+  name: slskd # Unique name for this deployment
+  namespace: media # Namespace for media-related applications
 spec:
-  replicas: 1 # Only one instance needed
+  # Replica configuration
+  replicas: 1 # Single instance (P2P clients don't typically cluster)
+  # Selector defines which pods this deployment manages
   selector:
     matchLabels:
-      app: slskd
+      app: slskd # Must match the pod template labels below
+  # Template defines the pod specification
   template:
     metadata:
       labels:
-        app: slskd
+        app: slskd # Labels for pod identification and service selection
     spec:
-      # Pod-level security context
+      # Pod-level security context - applies to all containers in the pod
+      # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true # Prevents running as root user (UID 0)
+        runAsUser: 1000 # Run as specific non-root user
+        runAsGroup: 1000 # Run as specific non-root group
+        fsGroup: 1000 # File system group for volume permissions
+        seccompProfile: # Secure computing mode profile
+          type: RuntimeDefault # Use container runtime's default seccomp profile
       containers:
         - name: slskd
+          # Container image - official Slskd image
+          # Maintained by the Slskd development team
           image: slskd/slskd:latest
+          # Network ports the container exposes
           ports:
             - containerPort: 5030 # HTTP web interface
-            - containerPort: 5031 # HTTPS web interface
-            - containerPort: 50300 # Soulseek peer connections
-          # Container-level security context
+            - containerPort: 5031 # HTTPS web interface (if SSL configured)
+            - containerPort: 50300 # Soulseek peer-to-peer connections
+          # Container-level security context - additional security for this specific container
           securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            readOnlyRootFilesystem: false  # Slskd needs to write to /app and /downloads
-            capabilities:
+            allowPrivilegeEscalation: false # Prevents gaining additional privileges
+            privileged: false # Disables privileged mode
+            readOnlyRootFilesystem: false # Allow writes (needs to write downloads/config)
+            capabilities: # Linux capabilities management
               drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+                - ALL # Drop all capabilities for minimal privileges
+            runAsNonRoot: true # Enforce non-root execution
+            runAsUser: 1000 # Specific user ID
+            runAsGroup: 1000 # Specific group ID
+          # Environment variables for container configuration
           env:
-            - name: PUID
-              value: "1000" # User ID for file permissions
-            - name: PGID
-              value: "1000" # Group ID for file permissions
+            - name: PUID # Process User ID - matches runAsUser above
+              value: "1000" # Ensures file permissions work correctly
+            - name: PGID # Process Group ID - matches runAsGroup above
+              value: "1000" # Ensures file permissions work correctly
+          # Volume mounts - how storage is attached to the container
           volumeMounts:
-            # Mount persistent storage for app data
+            # Slskd application data - contains databases, logs, and runtime files
             - name: media-storage
-              mountPath: /app
-              subPath: slskd/app
-            # Mount downloads directory
+              mountPath: /app # Slskd's application directory
+              subPath: slskd/app # Subdirectory within the volume
+            # Downloads directory - where Slskd saves downloaded files
             - name: media-storage
-              mountPath: /downloads
-              subPath: downloads
-            # Mount music library (shared with other users)
+              mountPath: /downloads # Download destination
+              subPath: downloads # Shared downloads folder
+            # Music library - files shared with other Soulseek users
+            # This is your music collection that others can browse and download
             - name: media-storage
-              mountPath: /music
-            # Overlay config file from ConfigMap
-            # This mounts ONLY the config file, not the entire directory
+              mountPath: /music # Mount entire music volume
+            # Configuration overlay - provides Slskd settings
+            # This mounts only the config file, allowing Slskd to create other files
             - name: slskd-config
-              mountPath: /app/slskd.yml
-              subPath: slskd.yml
+              mountPath: /app/slskd.yml # Specific config file mount
+              subPath: slskd.yml # File from ConfigMap
+          # Resource limits and requests - controls CPU and memory usage
+          # P2P applications can be resource-intensive during active transfers
           resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
+            requests: # Minimum resources guaranteed
+              memory: "256Mi" # 256 megabytes of RAM
+              cpu: "100m" # 0.1 CPU cores (100 millicores)
+            limits: # Maximum resources allowed
+              memory: "512Mi" # 512 megabytes of RAM maximum
+              cpu: "500m" # 0.5 CPU cores maximum
+      # Volumes - storage that can be mounted into containers
       volumes:
+        # Persistent storage for media files and application data
         - name: media-storage
-          persistentVolumeClaim:
-            claimName: media-pvc-auto
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: media-pvc-auto # Must match PVC name in storage manifests
+        # Configuration data from ConfigMap
         - name: slskd-config
-          configMap:
-            name: slskd-config
-            items:
-              - key: slskd.yml
-                path: slskd.yml
-
+          configMap: # Configuration stored in Kubernetes
+            name: slskd-config # Must match ConfigMap name
+            items: # Specific files to mount
+              - key: slskd.yml # Key in ConfigMap
+                path: slskd.yml # Filename in container

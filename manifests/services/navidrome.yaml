@@ -1,23 +1,55 @@
-# Navidrome Service Manifest for Kubernetes
-apiVersion: v1
-kind: Service
+# =============================================================================
+# Navidrome Service - Network Access to Music Streaming Server
+# =============================================================================
+# 
+# This Service provides network access to the Navidrome music streaming server by:
+# - Exposing the web interface for music browsing and streaming
+# - Providing Subsonic API endpoints for mobile app compatibility
+# - Enabling external access for remote music streaming
+# - Supporting multiple access methods (web, mobile apps, API clients)
+# 
+# Navidrome serves as your personal music streaming service, similar to Spotify
+# but for your own music collection. It provides:
+# 1. Web interface for browser-based music streaming
+# 2. Subsonic/Airsonic API for mobile app integration
+# 3. Multi-user support with individual libraries and playlists
+# 4. External access for streaming music from anywhere
+# 
+# The service is compatible with many mobile apps including DSub, Ultrasonic,
+# Play:Sub, and other Subsonic-compatible clients.
+# 
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - Navidrome: https://www.navidrome.org/docs/
+# - Subsonic API: http://www.subsonic.org/pages/api.jsp
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: navidrome
-  namespace: media
+  name: navidrome # Service name - becomes DNS name within cluster
+  namespace: media # Must match the namespace of target pods
 spec:
+  # Service type - NodePort allows external access
+  # Essential for remote music streaming and mobile app access
   type: NodePort
+  # Selector - determines which pods this service routes traffic to
   selector:
-    app: navidrome
+    app: navidrome # Routes to pods with label "app: navidrome"
+  # Port configuration - multiple access methods for flexibility
   ports:
-    - name: http
-      port: 4530
-      targetPort: 4530
-      nodePort: 30430
+    # HTTP interface for web-based music streaming
+    - name: http # Port name for identification
+      port: 4530 # Port exposed by the service (cluster-internal)
+      targetPort: 4530 # Port on the pod/container
+      nodePort: 30430 # External port on each cluster node
+    # HTTPS interface for secure music streaming
     - name: https
-      port: 4531
-      targetPort: 4531
-      nodePort: 30431
+      port: 4531 # Service port for HTTPS
+      targetPort: 4531 # Container port for HTTPS (if SSL configured)
+      nodePort: 30431 # External HTTPS access port
+    # Primary Navidrome interface (default port)
+    # This is the main port used by Navidrome for both web UI and API
     - name: navidrome
-      port: 4533
-      targetPort: 4533
-      nodePort: 30433 # External access port
+      port: 4533 # Service port (Navidrome's default)
+      targetPort: 4533 # Container port (matches deployment)
+      nodePort: 30433 # External access port for music streaming

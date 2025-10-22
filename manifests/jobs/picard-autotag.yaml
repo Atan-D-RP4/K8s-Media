@@ -1,64 +1,108 @@
-apiVersion: batch/v1
-kind: CronJob
+# =============================================================================
+# Picard Auto-Tagging CronJob - Automated Music Metadata Enhancement
+# =============================================================================
+# 
+# MusicBrainz Picard is an open-source music tagger that:
+# - Automatically identifies music files using acoustic fingerprinting
+# - Retrieves accurate metadata from the MusicBrainz database
+# - Standardizes file naming and folder organization
+# - Adds comprehensive tags including album art, release information, etc.
+# - Improves music library organization and searchability
+#
+# This CronJob runs Picard weekly to automatically tag and organize
+# music files in your library, ensuring consistent metadata quality.
+#
+# Documentation:
+# - MusicBrainz Picard: https://picard.musicbrainz.org/docs/
+# - Kubernetes CronJobs: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+# - MusicBrainz Database: https://musicbrainz.org/doc/About
+# - Cron Schedule Format: https://crontab.guru/
+# =============================================================================
+apiVersion: batch/v1 # API version for CronJob resources
+kind: CronJob # Resource type - runs jobs on a schedule
 metadata:
-  name: picard-auto-tag
-  namespace: media
+  name: picard-auto-tag # Unique name for this CronJob
+  namespace: media # Namespace for media-related applications
 spec:
-  schedule: "0 3 * * 0" # Cron format: minute hour day month weekday
-  successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 1
+  # Cron schedule - when to run the job
+  # Format: minute hour day-of-month month day-of-week
+  # "0 3 * * 0" = Every Sunday at 3:00 AM
+  # Use https://crontab.guru/ to understand/create cron expressions
+  schedule: "0 3 * * 0"
+  # Job history limits - how many completed jobs to keep
+  successfulJobsHistoryLimit: 3 # Keep last 3 successful job records
+  failedJobsHistoryLimit: 1 # Keep last 1 failed job record
+  # Job template - defines the job that will be created on schedule
   jobTemplate:
     spec:
-      backoffLimit: 2
+      # Retry policy - how many times to retry if the job fails
+      backoffLimit: 2 # Retry up to 2 times on failure
+      # Pod template - defines the pod that will run the job
       template:
         spec:
-          # Pod-level security context
+          # Pod-level security context - applies to all containers in the pod
+          # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            fsGroup: 1000
-            seccompProfile:
-              type: RuntimeDefault
+            runAsNonRoot: true # Prevents running as root user (UID 0)
+            runAsUser: 1000 # Run as specific non-root user
+            runAsGroup: 1000 # Run as specific non-root group
+            fsGroup: 1000 # File system group for volume permissions
+            seccompProfile: # Secure computing mode profile
+              type: RuntimeDefault # Use container runtime's default seccomp profile
           containers:
             - name: picard
+              # Container image - community-maintained Picard image
+              # Includes GUI-less (headless) Picard for automated operation
               image: mikenye/picard:latest
-              # Container-level security context
+              # Container-level security context - additional security for this specific container
               securityContext:
-                allowPrivilegeEscalation: false
-                privileged: false
-                readOnlyRootFilesystem: false  # Picard needs to write to /music for tagging
-                capabilities:
+                allowPrivilegeEscalation: false # Prevents gaining additional privileges
+                privileged: false # Disables privileged mode
+                readOnlyRootFilesystem: false # Allow writes (Picard needs to modify music files)
+                capabilities: # Linux capabilities management
                   drop:
-                    - ALL
-                runAsNonRoot: true
-                runAsUser: 1000
-                runAsGroup: 1000
+                    - ALL # Drop all capabilities for minimal privileges
+                runAsNonRoot: true # Enforce non-root execution
+                runAsUser: 1000 # Specific user ID
+                runAsGroup: 1000 # Specific group ID
+              # Command to run Picard in headless (non-GUI) mode
+              # This script automates the tagging process
               command:
-                - sh
-                - -c
+                - sh # Use shell to run the script
+                - -c # Execute the following command string
                 - |
-                  # Run Picard in headless mode
-                  # QT_QPA_PLATFORM=offscreen disables GUI
+                  # Picard headless automation script
+                  # QT_QPA_PLATFORM=offscreen disables the GUI for headless operation
+                  echo "Starting Picard auto-tagging process..."
+
                   QT_QPA_PLATFORM=offscreen picard \
                     -e "LOAD /music" \
                     -e "CLUSTER" \
                     -e "LOOKUP" \
                     -e "SAVE" \
                     -e "QUIT" || echo "Picard tagging completed with warnings"
-              volumeMounts:
-                - name: media-storage
-                  mountPath: /music
-              resources:
-                requests:
-                  memory: "512Mi"
-                  cpu: "200m"
-                limits:
-                  memory: "2Gi"
-                  cpu: "1000m"
-          restartPolicy: OnFailure
-          volumes:
-            - name: media-storage
-              persistentVolumeClaim:
-                claimName: media-pvc-auto
 
+                  echo "Picard auto-tagging process finished."
+              # Volume mounts - how storage is attached to the container
+              volumeMounts:
+                # Music library - files to be tagged and organized
+                - name: media-storage
+                  mountPath: /music # Mount point inside container
+              # Resource limits and requests - controls CPU and memory usage
+              # Music tagging can be CPU and memory intensive for large libraries
+              resources:
+                requests: # Minimum resources guaranteed
+                  memory: "512Mi" # 512 megabytes of RAM
+                  cpu: "200m" # 0.2 CPU cores (200 millicores)
+                limits: # Maximum resources allowed
+                  memory: "2Gi" # 2 gigabytes of RAM maximum
+                  cpu: "1000m" # 1 CPU core maximum
+          # Restart policy - what to do if the container fails
+          # OnFailure means restart only if the container exits with non-zero status
+          restartPolicy: OnFailure
+          # Volumes - storage that can be mounted into containers
+          volumes:
+            # Persistent storage for music files
+            - name: media-storage
+              persistentVolumeClaim: # References a PVC for persistent storage
+                claimName: media-pvc-auto # Must match PVC name in storage manifests

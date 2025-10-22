@@ -1,23 +1,56 @@
-# Lidaar Service Manifest for Kubernetes
-apiVersion: v1
-kind: Service
+# =============================================================================
+# Lidarr Service - Network Access to Music Collection Manager
+# =============================================================================
+# 
+# This Service provides network access to the Lidarr application by:
+# - Exposing Lidarr's web interface and API endpoints
+# - Providing stable internal DNS names for service discovery
+# - Enabling external access through NodePort configuration
+# - Load balancing traffic across multiple pod replicas (if scaled)
+# 
+# Kubernetes Services act as an abstraction layer that provides:
+# - Stable IP addresses and DNS names for dynamic pod IPs
+# - Load balancing across healthy pod instances
+# - Service discovery within the cluster
+# - External access points for applications
+# 
+# This service uses NodePort type to allow direct external access,
+# though in production it's typically accessed through Traefik ingress.
+# 
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - Service Types: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+# - NodePort: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: lidarr
-  namespace: media
+  name: lidarr # Service name - becomes DNS name within cluster
+  namespace: media # Must match the namespace of target pods
 spec:
+  # Service type - how the service is exposed
+  # NodePort: Exposes service on each node's IP at a static port
+  # Alternative types: ClusterIP (internal only), LoadBalancer (cloud LB)
   type: NodePort
+  # Selector - determines which pods this service routes traffic to
+  # Must match the labels on the target pods
   selector:
-    app: lidarr
+    app: lidarr # Routes to pods with label "app: lidarr"
+  # Port configuration - defines how traffic is routed
   ports:
-    - name: http
-      port: 8686 # Internal cluster port
-      targetPort: 8686 # Container port
-      nodePort: 30086 # External access port
+    # Primary HTTP interface for Lidarr web UI
+    - name: http # Port name for identification
+      port: 8686 # Port exposed by the service (cluster-internal)
+      targetPort: 8686 # Port on the pod/container to forward to
+      nodePort: 30086 # External port on each cluster node (30000-32767 range)
+    # HTTPS interface (if SSL is configured in Lidarr)
     - name: https
-      port: 8687 # Internal cluster port
-      targetPort: 8687 # Container port
-      nodePort: 30087 # External access port
+      port: 8687 # Service port for HTTPS
+      targetPort: 8687 # Container port for HTTPS
+      nodePort: 30087 # External HTTPS access port
+    # API endpoint for programmatic access
+    # Used by other applications to communicate with Lidarr
     - name: lidarr-api
-      port: 8688 # Internal cluster port
-      targetPort: 8688 # Container port
-      nodePort: 30088 # External access port
+      port: 8688 # Service port for API
+      targetPort: 8688 # Container port for API
+      nodePort: 30088 # External API access port

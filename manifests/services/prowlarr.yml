@@ -1,23 +1,54 @@
-# Prowlarr Service Manifest for Kubernetes
-apiVersion: v1
-kind: Service
+# =============================================================================
+# Prowlarr Service - Network Access to Indexer Manager
+# =============================================================================
+# 
+# This Service provides network access to the Prowlarr application by:
+# - Exposing Prowlarr's web interface for indexer management
+# - Providing API endpoints for *arr application integration
+# - Enabling external access for configuration and monitoring
+# - Facilitating communication between Prowlarr and other media apps
+# 
+# Prowlarr acts as a central hub for indexer management, so its API is
+# frequently accessed by other applications like Lidarr, Sonarr, and Radarr
+# for search provider synchronization and search operations.
+# 
+# The service exposes multiple ports to separate different types of traffic:
+# - Web interface for human interaction
+# - API endpoints for application-to-application communication
+# - HTTPS endpoints for secure access
+# 
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - Prowlarr API: https://wiki.servarr.com/prowlarr/api
+# - Service Discovery: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: prowlarr
-  namespace: media
+  name: prowlarr # Service name - becomes DNS name within cluster
+  namespace: media # Must match the namespace of target pods
 spec:
+  # Service type - NodePort allows external access
+  # Prowlarr needs external access for indexer testing and configuration
   type: NodePort
+  # Selector - determines which pods this service routes traffic to
   selector:
-    app: prowlarr
+    app: prowlarr # Routes to pods with label "app: prowlarr"
+  # Port configuration - multiple ports for different access methods
   ports:
-    - name: http
-      port: 9696
-      targetPort: 9696
-      nodePort: 30096
+    # Primary HTTP interface for Prowlarr web UI
+    - name: http # Port name for identification
+      port: 9696 # Port exposed by the service (cluster-internal)
+      targetPort: 9696 # Port on the pod/container (Prowlarr's default)
+      nodePort: 30096 # External port on each cluster node
+    # HTTPS interface for secure web access
     - name: https
-      port: 9697
-      targetPort: 9697
-      nodePort: 30097
+      port: 9697 # Service port for HTTPS
+      targetPort: 9697 # Container port for HTTPS
+      nodePort: 30097 # External HTTPS access port
+    # Dedicated API endpoint for programmatic access
+    # Used by other *arr applications to sync indexers and perform searches
     - name: prowlarr-api
-      port: 9698
-      targetPort: 9698
-      nodePort: 30098
+      port: 9698 # Service port for API
+      targetPort: 9698 # Container port for API
+      nodePort: 30098 # External API access port

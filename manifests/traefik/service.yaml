@@ -1,20 +1,61 @@
-apiVersion: v1
-kind: Service
+# =============================================================================
+# Traefik Service - Network Access to Reverse Proxy and Ingress Controller
+# =============================================================================
+# 
+# This Service provides network access to the Traefik ingress controller by:
+# - Exposing HTTP and HTTPS entry points for web traffic
+# - Providing access to the Traefik dashboard for monitoring
+# - Enabling external traffic routing to backend services
+# - Supporting automatic SSL certificate management
+# 
+# Traefik acts as the main entry point for all web traffic to your applications.
+# It provides:
+# 1. Reverse proxy functionality for routing requests to backend services
+# 2. Automatic service discovery through Kubernetes API integration
+# 3. SSL/TLS termination with Let's Encrypt certificate automation
+# 4. Load balancing across multiple backend instances
+# 5. Web dashboard for monitoring and configuration
+# 
+# This service uses NodePort type to expose Traefik on specific ports on each
+# cluster node. In a typical setup, these ports are then forwarded by your
+# router or load balancer to provide external access.
+# 
+# The NodePort configuration allows for:
+# - Port 30080 -> HTTP traffic (port 80)
+# - Port 30443 -> HTTPS traffic (port 443)
+# - Port 30090 -> Traefik dashboard (port 8080)
+# 
+# Documentation:
+# - Kubernetes Services: https://kubernetes.io/docs/concepts/services-networking/service/
+# - Traefik: https://doc.traefik.io/traefik/
+# - Ingress Controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+# - NodePort Services: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+# =============================================================================
+apiVersion: v1 # API version for Service resources
+kind: Service # Resource type - provides network access to pods
 metadata:
-  name: traefik
-  namespace: traefik
+  name: traefik # Service name - becomes DNS name within cluster
+  namespace: traefik # Must match the namespace of target pods
 spec:
+  # Service type - NodePort exposes service on each node's IP at a static port
+  # This allows external access through the cluster nodes
   type: NodePort
+  # Selector - determines which pods this service routes traffic to
   selector:
-    app: traefik
+    app: traefik # Routes to pods with label "app: traefik"
+  # Port configuration - HTTP, HTTPS, and dashboard access
   ports:
-    - name: web
-      port: 80
-      nodePort: 30080 # Forward router port 80 to this
+    # HTTP entry point for web traffic
+    - name: web # Port name for identification
+      port: 80 # Port exposed by the service (standard HTTP)
+      nodePort: 30080 # External port on each cluster node
+      # Forward router port 80 to this NodePort
+    # HTTPS entry point for secure web traffic
     - name: websecure
-      port: 443
-      nodePort: 30443 # Forward router port 443 to this
+      port: 443 # Port exposed by the service (standard HTTPS)
+      nodePort: 30443 # External port on each cluster node
+      # Forward router port 443 to this NodePort
+    # Traefik dashboard and API access
     - name: dashboard
-      port: 8080
-      nodePort: 30090
-
+      port: 8080 # Port exposed by the service (Traefik dashboard)
+      nodePort: 30090 # External port for dashboard access

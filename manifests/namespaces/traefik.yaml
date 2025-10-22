@@ -1,12 +1,36 @@
-apiVersion: v1
-kind: Namespace
+# =============================================================================
+# Traefik Namespace - Isolated Environment for Ingress Controller
+# =============================================================================
+# 
+# This namespace provides an isolated environment for the Traefik ingress
+# controller and related components. Separating the ingress controller into
+# its own namespace provides:
+# 
+# - Security isolation from application workloads
+# - Dedicated RBAC permissions for Kubernetes API access
+# - Separate network policies for ingress traffic handling
+# - Independent resource management and monitoring
+# - Clear separation of concerns between routing and applications
+#
+# Traefik requires elevated permissions to watch Kubernetes resources across
+# namespaces, so isolating it provides better security boundaries.
+#
+# Documentation:
+# - Kubernetes Namespaces: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+# - Ingress Controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+# - RBAC: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+# =============================================================================
+apiVersion: v1 # API version for Namespace resources
+kind: Namespace # Resource type - provides isolated environment
 metadata:
-  name: traefik
+  name: traefik # Unique name for this namespace
   labels:
-    # Namespace identification for network policies
+    # Namespace identification label for network policies
+    # This label is used by NetworkPolicy resources to identify this namespace
     name: traefik
-    # Pod Security Standards enforcement
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-
+    # Pod Security Standards (PSS) enforcement labels
+    # These labels automatically enforce security policies on all pods in this namespace
+    # See: https://kubernetes.io/docs/concepts/security/pod-security-standards/
+    pod-security.kubernetes.io/enforce: restricted # Enforce the most restrictive security profile
+    pod-security.kubernetes.io/audit: restricted # Audit violations of the restricted profile
+    pod-security.kubernetes.io/warn: restricted # Warn about violations of the restricted profile

@@ -1,80 +1,112 @@
-# Lidarr Deployment manifest for Kubernetes
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# Lidarr Deployment - Music Collection Manager
+# =============================================================================
+# 
+# Lidarr is an automated music collection manager that:
+# - Monitors music release calendars
+# - Searches for and downloads music files
+# - Organizes and renames music files
+# - Integrates with download clients and media servers
+#
+# This deployment runs Lidarr in a secure, non-root container with proper
+# resource limits and persistent storage for configuration and media files.
+#
+# Documentation:
+# - Lidarr: https://wiki.servarr.com/lidarr
+# - Kubernetes Deployments: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+# - Security Contexts: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+# =============================================================================
+apiVersion: apps/v1 # API version for Deployment resources
+kind: Deployment # Resource type - manages a set of identical pods
 metadata:
-  name: lidarr
-  namespace: media
+  name: lidarr # Unique name for this deployment
+  namespace: media # Namespace for media-related applications
 spec:
-  replicas: 1
+  # Replica configuration - how many instances to run
+  replicas: 1 # Single instance (Lidarr doesn't support clustering)
+  # Selector defines which pods this deployment manages
   selector:
     matchLabels:
-      app: lidarr
+      app: lidarr # Must match the pod template labels below
+  # Template defines the pod specification
   template:
     metadata:
       labels:
-        app: lidarr
+        app: lidarr # Labels for pod identification and service selection
     spec:
-      # Pod-level security context
+      # Pod-level security context - applies to all containers in the pod
+      # See: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true # Prevents running as root user (UID 0)
+        runAsUser: 1000 # Run as specific non-root user
+        runAsGroup: 1000 # Run as specific non-root group
+        fsGroup: 1000 # File system group for volume permissions
+        seccompProfile: # Secure computing mode profile
+          type: RuntimeDefault # Use container runtime's default seccomp profile
       containers:
         - name: lidarr
+          # Container image - using hotio's Lidarr image with plugin support
+          # hotio images are well-maintained and include useful plugins
           image: ghcr.io/hotio/lidarr:pr-plugins
+          # Network ports the container exposes
           ports:
-            - containerPort: 8686
-          # Container-level security context
+            - containerPort: 8686 # Lidarr web interface port
+          # Container-level security context - additional security for this specific container
           securityContext:
-            allowPrivilegeEscalation: false
-            privileged: false
-            readOnlyRootFilesystem: false  # Lidarr needs to write to /config
-            capabilities:
+            allowPrivilegeEscalation: false # Prevents gaining additional privileges
+            privileged: false # Disables privileged mode
+            readOnlyRootFilesystem: false # Allow writes (Lidarr needs to write config files)
+            capabilities: # Linux capabilities management
               drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
+                - ALL # Drop all capabilities for minimal privileges
+            runAsNonRoot: true # Enforce non-root execution
+            runAsUser: 1000 # Specific user ID
+            runAsGroup: 1000 # Specific group ID
+          # Environment variables for container configuration
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
+            - name: PUID # Process User ID - matches runAsUser above
+              value: "1000" # Ensures file permissions work correctly
+            - name: PGID # Process Group ID - matches runAsGroup above
+              value: "1000" # Ensures file permissions work correctly
+          # Volume mounts - how storage is attached to the container
+          # See: https://kubernetes.io/docs/concepts/storage/volumes/
           volumeMounts:
-            # Mount config directory where Lidarr stores settings/database
-            - name: media-storage
-              mountPath: /config
-              subPath: lidarr/config
-            # Mount downloads directory
+            # Lidarr configuration and database storage
+            - name: media-storage # References volume defined below
+              mountPath: /config # Where to mount inside container
+              subPath: lidarr/config # Subdirectory within the volume
+            # Downloads directory - where Lidarr places downloaded files
             - name: media-storage
               mountPath: /downloads
-              subPath: downloads
-            # Mount music library
+              subPath: downloads # Shared downloads folder
+            # Music library - where organized music files are stored
             - name: media-storage
-              mountPath: /music
-            # Overlay just the config.xml file from ConfigMap
-            # This provides initial configuration without blocking other files
+              mountPath: /music # Mount entire music volume
+            # Configuration overlay - provides initial Lidarr settings
+            # This mounts only the config file, allowing Lidarr to create other files
             - name: lidarr-config
-              mountPath: /config/config.xml
-              subPath: config.xml
+              mountPath: /config/config.xml # Specific file mount
+              subPath: config.xml # File from ConfigMap
+          # Resource limits and requests - controls CPU and memory usage
+          # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
           resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
+            requests: # Minimum resources guaranteed
+              memory: "256Mi" # 256 megabytes of RAM
+              cpu: "100m" # 0.1 CPU cores (100 millicores)
+            limits: # Maximum resources allowed
+              memory: "1Gi" # 1 gigabyte of RAM maximum
+              cpu: "1000m" # 1 CPU core maximum
+      # Volumes - storage that can be mounted into containers
+      # See: https://kubernetes.io/docs/concepts/storage/
       volumes:
+        # Persistent storage for media files and configuration
         - name: media-storage
-          persistentVolumeClaim:
-            claimName: media-pvc-auto
+          persistentVolumeClaim: # References a PVC for persistent storage
+            claimName: media-pvc-auto # Must match PVC name in storage manifests
+        # Configuration data from ConfigMap
         - name: lidarr-config
-          configMap:
-            name: lidarr-config
-            items:
-              - key: config.xml
-                path: config.xml
-
+          configMap: # Configuration stored in Kubernetes
+            name: lidarr-config # Must match ConfigMap name
+            items: # Specific files to mount
+              - key: config.xml # Key in ConfigMap
+                path: config.xml # Filename in container

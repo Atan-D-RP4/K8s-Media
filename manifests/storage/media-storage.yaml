@@ -1,38 +1,93 @@
-# PersistentVolume: Links to actual storage on the host
+# =============================================================================
+# Media Storage Configuration - Shared Music Library and Downloads
+# =============================================================================
+# 
+# This file configures persistent storage for the media applications, providing
+# a shared storage volume that multiple applications can access simultaneously.
+# The storage is used for:
+# - Music library files (organized and tagged music collection)
+# - Download directories (temporary storage for new downloads)
+# - Application data and configurations
+# - Shared access across Lidarr, Navidrome, Slskd, and Picard
+# 
+# Storage Architecture:
+# 1. PersistentVolume (PV) - Represents actual storage on the host
+# 2. PersistentVolumeClaim (PVC) - Requests storage from the PV
+# 3. Volume Mounts - Attach storage to specific paths in containers
+# 
+# This configuration uses hostPath storage, which directly mounts a directory
+# from the host filesystem. This is suitable for single-node clusters and
+# provides high performance for media file access.
+# 
+# Documentation:
+# - Persistent Volumes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+# - Storage Classes: https://kubernetes.io/docs/concepts/storage/storage-classes/
+# - Volume Access Modes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+# =============================================================================
+# =============================================================================
+# Media Persistent Volume - Host Storage Definition
+# =============================================================================
+# This PersistentVolume represents the actual storage location on the host
+# where media files are stored. It provides a Kubernetes abstraction over
+# the host directory, allowing multiple applications to share the same storage.
+# 
+# The volume supports ReadWriteMany access, enabling multiple pods to
+# simultaneously read and write to the same storage location.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: media-pv-host
+  name: media-pv-host # Unique name for this persistent volume
   labels:
-    type: local
-    app: media
+    type: local # Indicates this is local (host-based) storage
+    app: media # Application label for organization
 spec:
+  # Storage capacity and access configuration
   capacity:
-    storage: 50Gi
+    storage: 50Gi # Total storage capacity (adjust based on your needs)
+  # Access modes define how the volume can be mounted
   accessModes:
     - ReadWriteMany # Multiple pods can read/write simultaneously
-  persistentVolumeReclaimPolicy: Retain # Don't delete data if PVC is removed
-  storageClassName: local-path
+    # Required for shared access across media applications
+  # Reclaim policy determines what happens when PVC is deleted
+  persistentVolumeReclaimPolicy: Retain # Preserve data when PVC is removed
+  # Prevents accidental data loss
+
+  # Storage class for dynamic provisioning and binding
+  storageClassName: local-path # Uses local-path storage class
+  # Host path configuration - where files are actually stored
   hostPath:
     path: /home/atan/Media/music # TODO: Update to your actual path
-    type: DirectoryOrCreate
+    # This should point to your music directory
+    type: DirectoryOrCreate # Create directory if it doesn't exist
 ---
-# PersistentVolumeClaim: Requests storage from the PV above
+# =============================================================================
+# Media Persistent Volume Claim - Storage Request
+# =============================================================================
+# This PersistentVolumeClaim requests storage from the PersistentVolume above.
+# It acts as a "storage request" that applications can reference to access
+# the shared media storage.
+# 
+# The PVC is explicitly bound to the specific PV above using volumeName,
+# ensuring predictable storage allocation.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: media-pvc-auto
-  namespace: media
+  name: media-pvc-auto # PVC name referenced by deployments
+  namespace: media # Must be in media namespace for application access
 spec:
+  # Access modes must match or be subset of PV access modes
   accessModes:
-    - ReadWriteMany
+    - ReadWriteMany # Multiple pods can read/write simultaneously
+  # Storage class must match the PV storage class
   storageClassName: local-path
-  volumeName: media-pv-host # Explicitly binds to our PV above
+  # Explicit binding to specific PV (prevents binding to wrong storage)
+  volumeName: media-pv-host # Must match PV name above
+  # Storage resource requirements
   resources:
     requests:
-      storage: 50Gi
+      storage: 50Gi # Amount of storage requested (must not exceed PV capacity)
+  # Selector ensures binding to correct PV using labels
   selector:
     matchLabels:
-      type: local
-      app: media
-
+      type: local # Must match PV labels
+      app: media # Must match PV labels
