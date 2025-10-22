@@ -32,10 +32,9 @@ spec:
             - name: media-storage
               mountPath: /config
               subPath: navidrome/config
-            # Mount music directory
+            # Mount music library
             - name: media-storage
               mountPath: /music
-              subPath: music
             # Mount custom config file
             - name: navidrome-config
               mountPath: /config/navidrome.toml

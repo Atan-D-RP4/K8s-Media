@@ -1,3 +1,7 @@
+#! /bin/bash
+
+set -xe
+
 # Stop k3s service and any background processes
 sudo systemctl stop k3s
 sudo systemctl disable k3s 2>/dev/null || true
